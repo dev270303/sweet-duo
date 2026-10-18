@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f3ee">
+<title>Bingo — Play with a friend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f3ee;
+    --card: #ffffff;
+    --ink: #1b1a17;
+    --muted: #5f5b53;
+    --line: #d9d3c7;
+    --accent: #c4471f;
+    --accent-soft: #fbe2d8;
+    --hit: #fbe7a1;
+    --cut: #1b1a17;
+    --btn: #1b1a17;
+    --btn-ink: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151412;
+      --card: #1f1e1b;
+      --ink: #f2efe8;
+      --muted: #aaa49a;
+      --line: #3a3833;
+      --accent: #ff7a52;
+      --accent-soft: #3d2219;
+      --hit: #4a3f12;
+      --cut: #f2efe8;
+      --btn: #f2efe8;
+      --btn-ink: #151412;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    display: flex; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 16px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+  h1 { margin: 8px 0 0; font-family: 'Archivo Black', sans-serif; font-size: 38px; letter-spacing: 1px; line-height: 1; }
+  h1 span { color: var(--accent); }
+  header a { color: var(--muted); font-size: 14px; padding: 12px 0; }
+  p.sub { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  button {
+    font: inherit; font-weight: 700; font-size: 16px;
+    min-height: 48px; border-radius: 12px; border: 2px solid var(--btn);
+    background: var(--btn); color: var(--btn-ink); cursor: pointer; padding: 0 16px;
+  }
+  button.ghost { background: transparent; color: var(--ink); }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  label { font-size: 14px; color: var(--muted); }
+  input {
+    font: inherit; font-size: 22px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase;
+    min-height: 48px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+    padding: 0 14px; width: 100%;
+  }
+  input:focus { outline: none; border-color: var(--ink); }
+  .divider { text-align: center; color: var(--muted); font-size: 13px; }
+  .code { font-size: 40px; font-weight: 700; letter-spacing: 8px; text-align: center; }
+  .status { min-height: 24px; font-size: 18px; font-weight: 700; text-align: center; }
+  .note { font-size: 13px; color: var(--muted); text-align: center; margin: 0; }
+  .hidden { display: none !important; }
+  details { font-size: 14px; color: var(--muted); }
+  details summary { cursor: pointer; font-weight: 700; color: var(--ink); min-height: 32px; }
+  details ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+
+  /* scoreboard */
+  .top { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  .prog { display: flex; flex-direction: column; gap: 2px; }
+  .prog .who { font-size: 13px; color: var(--muted); }
+  .mini { display: flex; gap: 4px; }
+  .mini span {
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif; font-size: 14px; border-radius: 6px;
+    border: 1.5px solid var(--line); color: var(--muted);
+  }
+  .mini span.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .score { text-align: right; font-size: 13px; color: var(--muted); }
+  .score strong { font-size: 20px; color: var(--ink); }
+  .last { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  .last strong { font-size: 26px; color: var(--ink); min-width: 36px; text-align: center; }
+
+  /* BINGO letters */
+  .letters { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .letters span {
+    position: relative; text-align: center;
+    font-family: 'Archivo Black', sans-serif; font-size: clamp(36px, 13vw, 56px); line-height: 1.1;
+    color: var(--ink);
+  }
+  .letters span.cut { color: var(--accent); }
+  .letters span.cut::after {
+    content: ''; position: absolute; left: 12%; right: 12%; top: 50%; height: 5px;
+    background: var(--accent); border-radius: 3px; transform: rotate(-12deg);
+  }
+
+  /* card */
+  .grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+    width: 100%; aspect-ratio: 1; background: var(--line); border-radius: 14px; padding: 6px;
+  }
+  .cell {
+    position: relative; overflow: hidden;
+    background: var(--card); border: 0; border-radius: 8px; padding: 0; min-height: 0;
+    font-size: clamp(22px, 7.5vw, 32px); font-weight: 700; color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cell:disabled { opacity: 1; cursor: default; }
+  .grid.myturn .cell:not(:disabled) { box-shadow: inset 0 0 0 2px var(--accent-soft); }
+  .cell.called { color: var(--muted); }
+  .cell.called::after {
+    content: ''; position: absolute; left: 14%; right: 14%; top: 50%; height: 3px;
+    background: var(--cut); border-radius: 2px; transform: rotate(-35deg);
+  }
+  .cell.inline { background: var(--hit); }
+  .cell.just { animation: flash .5s ease-out; }
+  @keyframes flash { 0% { background: var(--accent-soft); } 100% { } }
+
+  .opp h3 { margin: 0; font-size: 15px; }
+  .grid.small .cell { font-size: clamp(14px, 4.5vw, 20px); }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:block">
+    <a href="./" style="display:inline-block;padding:8px 0">← All games</a>
+    <h1>BIN<span>GO</span></h1>
+    <p class="sub">Two players, two phones, no sign-up.</p>
+  </header>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="card">
+    <button id="createBtn">Create a game</button>
+    <div class="divider">or join a friend's game</div>
+    <label for="codeInput">Room code</label>
+    <input id="codeInput" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE">
+    <button id="joinBtn" class="ghost">Join</button>
+    <p id="lobbyMsg" class="note"></p>
+    <details>
+      <summary>How to play</summary>
+      <ol>
+        <li>Each player gets their own 5×5 card with 1–25 shuffled. Shuffle until you like it, then tap Ready.</li>
+        <li>Take turns picking a number from your card. It gets cut on both cards.</li>
+        <li>Every full line you complete (row, column or diagonal) cuts one letter of B‑I‑N‑G‑O.</li>
+        <li>First to cut all five letters wins. If both finish on the same number, it's a draw.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- WAITING -->
+  <section id="waiting" class="card hidden">
+    <p class="note">Share this code with your friend</p>
+    <div id="roomCode" class="code">-----</div>
+    <div class="row">
+      <button id="shareBtn">Share link</button>
+      <button id="copyBtn" class="ghost">Copy link</button>
+    </div>
+    <div id="waitMsg" class="status">Waiting for your friend…</div>
+    <button id="cancelBtn" class="ghost">Cancel</button>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="card hidden">
+    <div class="top">
+      <div class="prog">
+        <span class="who">Friend's progress</span>
+        <div id="oppMini" class="mini"></div>
+      </div>
+      <div class="score">You <strong id="sMe">0</strong> · <strong id="sThem">0</strong> Friend<br><span id="sDraw"></span></div>
+    </div>
+    <div id="status" class="status">&nbsp;</div>
+    <div class="letters" id="letters"></div>
+    <div id="grid" class="grid" role="grid" aria-label="Your bingo card"></div>
+    <div id="lastWrap" class="last hidden">Last number <strong id="lastNum">–</strong> <span id="lastBy"></span></div>
+
+    <div id="setupRow" class="row">
+      <button id="shuffleBtn" class="ghost">Shuffle card</button>
+      <button id="readyBtn">I'm ready</button>
+    </div>
+    <div id="overRow" class="row hidden">
+      <button id="againBtn">Play again</button>
+    </div>
+    <button id="leaveBtn" class="ghost">Leave</button>
+  </section>
+
+  <!-- OPPONENT CARD (revealed at the end) -->
+  <section id="oppCardWrap" class="card opp hidden">
+    <h3>Your friend's card</h3>
+    <div id="oppGrid" class="grid small"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const PREFIX = 'bingogame-v1-';
+  const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const WORD = 'BINGO';
+  // 12 lines on a 5x5 card: 5 rows, 5 columns, 2 diagonals (positions 0..24)
+  const LINES = [];
+  for (let r = 0; r < 5; r++) LINES.push([0,1,2,3,4].map(c => r * 5 + c));
+  for (let c = 0; c < 5; c++) LINES.push([0,1,2,3,4].map(r => r * 5 + c));
+  LINES.push([0,6,12,18,24], [4,8,12,16,20]);
+
+  const $ = id => document.getElementById(id);
+  const show = id => ['lobby','waiting','game'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+
+  let peer = null, conn = null, mode = null, me = 'H';
+  let round = 0, phase = 'setup', turn = 'H';
+  let myCard = [], oppCard = null, oppReadyRound = -1, myReady = false;
+  let called = new Set(), lastCalled = null, lastBy = null;
+  let scores = { me: 0, them: 0, d: 0 };
+  let resultText = '';
+
+  // ---------- build UI ----------
+  const cells = [];
+  for (let i = 0; i < 25; i++) {
+    const b = document.createElement('button');
+    b.className = 'cell';
+    b.addEventListener('click', () => onPick(i));
+    $('grid').appendChild(b);
+    cells.push(b);
+  }
+  const letterEls = [...WORD].map(ch => { const s = document.createElement('span'); s.textContent = ch; $('letters').appendChild(s); return s; });
+  const miniEls = [...WORD].map(ch => { const s = document.createElement('span'); s.textContent = ch; $('oppMini').appendChild(s); return s; });
+  const oppCells = [];
+  for (let i = 0; i < 25; i++) { const d = document.createElement('div'); d.className = 'cell'; $('oppGrid').appendChild(d); oppCells.push(d); }
+
+  // ---------- game logic ----------
+  function shuffled() {
+    const a = Array.from({ length: 25 }, (_, i) => i + 1);
+    const rnd = crypto.getRandomValues(new Uint32Array(25));
+    for (let i = a.length - 1; i > 0; i--) { const j = rnd[i] % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function validCard(c) {
+    return Array.isArray(c) && c.length === 25 && new Set(c).size === 25 && c.every(n => Number.isInteger(n) && n >= 1 && n <= 25);
+  }
+  function doneLines(card) {
+    if (!card) return [];
+    return LINES.filter(l => l.every(p => called.has(card[p])));
+  }
+  const other = r => (r === 'H' ? 'G' : 'H');
+
+  function newSetup(r) {
+    round = r; phase = 'setup';
+    myCard = shuffled(); myReady = false;
+    called = new Set(); lastCalled = null; lastBy = null; resultText = '';
+    $('oppCardWrap').classList.add('hidden');
+    render();
+  }
+
+  function maybeStart() {
+    if (phase === 'setup' && myReady && oppReadyRound === round) {
+      phase = 'play';
+      turn = round % 2 === 0 ? 'H' : 'G';
+      if (navigator.vibrate) navigator.vibrate(20);
+      render();
+    }
+  }
+
+  function applyCall(n, by) {
+    called.add(n); lastCalled = n; lastBy = by;
+    const mine = doneLines(myCard).length, theirs = doneLines(oppCard).length;
+    if (mine >= 5 || theirs >= 5) {
+      phase = 'over';
+      if (mine >= 5 && theirs >= 5) { scores.d++; resultText = 'Both got BINGO — draw!'; }
+      else if (mine >= 5) { scores.me++; resultText = 'BINGO! You win!'; }
+      else { scores.them++; resultText = 'Your friend got BINGO first'; }
+      if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+    } else {
+      turn = other(turn);
+    }
+    render(n);
+  }
+
+  function onPick(i) {
+    if (phase !== 'play' || turn !== me || !conn || !conn.open) return;
+    const n = myCard[i];
+    if (called.has(n)) return;
+    send({ t: 'call', n, round });
+    applyCall(n, me);
+  }
+
+  function render(justN) {
+    const myLines = doneLines(myCard);
+    const inline = new Set(myLines.flat());
+    const myCount = Math.min(myLines.length, 5);
+    const oppCount = Math.min(doneLines(oppCard).length, 5);
+    const canPick = phase === 'play' && turn === me && conn && conn.open;
+
+    cells.forEach((c, i) => {
+      const n = myCard[i];
+      c.textContent = n;
+      c.className = 'cell' + (called.has(n) ? ' called' : '') + (inline.has(i) ? ' inline' : '') + (n === justN ? ' just' : '');
+      c.disabled = !canPick || called.has(n);
+      c.setAttribute('aria-label', n + (called.has(n) ? ', cut' : ''));
+    });
+    $('grid').classList.toggle('myturn', !!canPick);
+    letterEls.forEach((el, i) => el.classList.toggle('cut', i < myCount));
+    miniEls.forEach((el, i) => el.classList.toggle('on', i < oppCount));
+
+    $('sMe').textContent = scores.me; $('sThem').textContent = scores.them;
+    $('sDraw').textContent = scores.d ? scores.d + (scores.d === 1 ? ' draw' : ' draws') : '';
+
+    let s;
+    if (phase === 'setup') {
+      if (!myReady) s = 'Shuffle your card, then tap Ready';
+      else s = oppReadyRound === round ? 'Starting…' : 'Waiting for your friend to get ready…';
+    } else if (phase === 'play') {
+      s = turn === me ? 'Your turn — pick a number' : "Friend's turn…";
+    } else s = resultText;
+    $('status').textContent = s;
+
+    $('setupRow').classList.toggle('hidden', phase !== 'setup');
+    $('shuffleBtn').disabled = myReady;
+    $('readyBtn').disabled = myReady;
+    $('readyBtn').textContent = myReady ? 'Ready ✓' : "I'm ready";
+    $('overRow').classList.toggle('hidden', phase !== 'over');
+
+    $('lastWrap').classList.toggle('hidden', lastCalled == null);
+    $('lastNum').textContent = lastCalled == null ? '–' : lastCalled;
+    $('lastBy').textContent = lastBy == null ? '' : (lastBy === me ? 'by you' : 'by friend');
+
+    if (phase === 'over' && oppCard) {
+      const oppInline = new Set(doneLines(oppCard).flat());
+      oppCells.forEach((c, i) => {
+        const n = oppCard[i];
+        c.textContent = n;
+        c.className = 'cell' + (called.has(n) ? ' called' : '') + (oppInline.has(i) ? ' inline' : '');
+      });
+      $('oppCardWrap').classList.remove('hidden');
+    }
+  }
+
+  // ---------- networking ----------
+  function send(msg) { if (conn && conn.open) conn.send(msg); }
+  function makeCode() {
+    let s = '';
+    for (const n of crypto.getRandomValues(new Uint8Array(5))) s += ALPHA[n % ALPHA.length];
+    return s;
+  }
+  function shareUrl(code) { const u = new URL(location.href); u.search = '?room=' + code; u.hash = ''; return u.toString(); }
+
+  function cleanup() {
+    try { conn && conn.close(); } catch (e) {}
+    try { peer && peer.destroy(); } catch (e) {}
+    conn = null; peer = null; mode = null;
+    history.replaceState(null, '', location.pathname);
+  }
+  function goLobby(msg) {
+    cleanup();
+    $('oppCardWrap').classList.add('hidden');
+    $('lobbyMsg').textContent = msg || '';
+    show('lobby');
+  }
+
+  function host() {
+    mode = 'host'; me = 'H';
+    const code = makeCode();
+    $('roomCode').textContent = code;
+    $('waitMsg').textContent = 'Connecting…';
+    show('waiting');
+    peer = new Peer(PREFIX + code);
+    peer.on('open', () => { $('waitMsg').textContent = 'Waiting for your friend…'; });
+    peer.on('connection', c => {
+      if (conn && conn.open) { c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 300); }); return; }
+      wire(c);
+    });
+    peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id') { cleanup(); host(); return; }
+      if (err.type === 'network' || err.type === 'server-error') goLobby("Couldn't reach the connection service. Check your internet and try again.");
+      else if (!conn || !conn.open) $('waitMsg').textContent = 'Connection problem: ' + err.type;
+    });
+  }
+
+  function join(code) {
+    code = (code || '').trim().toUpperCase();
+    if (code.length !== 5) { $('lobbyMsg').textContent = 'Enter the 5-letter room code.'; return; }
+    mode = 'guest'; me = 'G';
+    $('lobbyMsg').textContent = 'Joining ' + code + '…';
+    peer = new Peer();
+    peer.on('open', () => {
+      wire(peer.connect(PREFIX + code, { reliable: true }));
+      setTimeout(() => { if (mode === 'guest' && (!conn || !conn.open)) goLobby('No game found with code ' + code + '. Ask your friend for a fresh code.'); }, 12000);
+    });
+    peer.on('error', err => {
+      if (err.type === 'peer-unavailable') goLobby('No game found with code ' + code + '. Ask your friend for a fresh code.');
+      else if (err.type === 'network' || err.type === 'server-error') goLobby("Couldn't reach the connection service. Check your internet and try again.");
+      else goLobby('Connection problem: ' + err.type);
+    });
+  }
+
+  function wire(c) {
+    conn = c;
+    c.on('open', () => {
+      history.replaceState(null, '', location.pathname);
+      scores = { me: 0, them: 0, d: 0 };
+      oppReadyRound = -1; oppCard = null;
+      newSetup(0);
+      show('game');
+    });
+    c.on('data', msg => {
+      if (!msg || typeof msg !== 'object') return;
+      switch (msg.t) {
+        case 'full': goLobby('That game already has two players.'); break;
+        case 'ready':
+          if (validCard(msg.card) && Number.isInteger(msg.round)) {
+            oppCard = msg.card; oppReadyRound = msg.round;
+            render(); maybeStart();
+          }
+          break;
+        case 'call':
+          if (phase === 'play' && msg.round === round && turn === other(me) &&
+              Number.isInteger(msg.n) && msg.n >= 1 && msg.n <= 25 && !called.has(msg.n)) {
+            applyCall(msg.n, other(me));
+          }
+          break;
+        case 'again':
+          if (Number.isInteger(msg.round) && msg.round > round) newSetup(msg.round);
+          break;
+        case 'bye': goLobby('Your friend left the game.'); break;
+      }
+    });
+    c.on('close', () => { if (mode) goLobby('Connection lost. Start a new game to play again.'); });
+    c.on('error', () => {});
+  }
+
+  // ---------- buttons ----------
+  $('createBtn').onclick = () => { $('lobbyMsg').textContent = ''; host(); };
+  $('joinBtn').onclick = () => join($('codeInput').value);
+  $('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') join($('codeInput').value); });
+  $('codeInput').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+
+  $('shuffleBtn').onclick = () => { if (phase === 'setup' && !myReady) { myCard = shuffled(); render(); } };
+  $('readyBtn').onclick = () => {
+    if (phase !== 'setup' || myReady) return;
+    myReady = true;
+    send({ t: 'ready', card: myCard, round });
+    render(); maybeStart();
+  };
+  $('againBtn').onclick = () => {
+    if (phase !== 'over') return;
+    const r = round + 1;
+    send({ t: 'again', round: r });
+    newSetup(r);
+  };
+  $('leaveBtn').onclick = () => { send({ t: 'bye' }); setTimeout(() => goLobby(), 150); };
+
+  $('shareBtn').onclick = async () => {
+    const code = $('roomCode').textContent, url = shareUrl(code);
+    if (navigator.share) { try { await navigator.share({ title: 'Bingo', text: 'Play Bingo with me! Code: ' + code, url }); } catch (e) {} }
+    else copy(url);
+  };
+  $('copyBtn').onclick = () => copy(shareUrl($('roomCode').textContent));
+  function copy(text) {
+    const done = () => { $('copyBtn').textContent = 'Copied!'; setTimeout(() => $('copyBtn').textContent = 'Copy link', 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => prompt('Copy this link:', text));
+    else prompt('Copy this link:', text);
+  }
+  $('cancelBtn').onclick = () => goLobby();
+  window.addEventListener('beforeunload', () => send({ t: 'bye' }));
+
+  // ---------- start ----------
+  if (typeof Peer === 'undefined') {
+    $('createBtn').disabled = true; $('joinBtn').disabled = true;
+    $('lobbyMsg').textContent = "Online play couldn't load. Check your internet and refresh.";
+  }
+  const roomParam = new URLSearchParams(location.search).get('room');
+  if (roomParam && typeof Peer !== 'undefined') { $('codeInput').value = roomParam.toUpperCase(); join(roomParam); }
+})();
+</script>
+</body>
+</html>
