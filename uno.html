@@ -242,6 +242,94 @@
   .tally b { color: var(--ink); font-size: 20px; }
   .confetti { position: fixed; top: -20px; width: 10px; height: 16px; border-radius: 2px; z-index: 60; pointer-events: none; }
 
+  /* ---------- social: dock, reactions, chat ---------- */
+  .dock { display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 8px; padding: 4px 12px 2px; }
+  .dock .actions { padding: 0; }
+  .round-btn {
+    width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+    display: grid; place-items: center; position: relative; font-size: 24px; transition: transform .12s var(--ease);
+  }
+  .round-btn:active { transform: scale(.9); }
+  .round-btn svg { width: 22px; height: 22px; }
+  .round-btn.on { background: var(--ink); color: #111; }
+  .unread {
+    position: absolute; top: -3px; right: -3px; min-width: 21px; height: 21px; padding: 0 5px; border-radius: 11px;
+    background: var(--R); color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--bg);
+  }
+  .avatar { font-size: 24px; }
+  .seat { position: relative; }
+
+  .tray {
+    position: fixed; z-index: 45; right: max(12px, calc(50vw - 268px)); bottom: calc(86px + env(safe-area-inset-bottom));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 10px;
+    display: grid; grid-template-columns: repeat(5, 50px); gap: 6px; box-shadow: 0 24px 60px rgba(0,0,0,.55);
+    transform-origin: 90% 100%;
+  }
+  .tray button { width: 50px; height: 50px; border-radius: 15px; border: 0; background: transparent; font-size: 30px; line-height: 1; transition: transform .12s var(--ease), background .15s; }
+  .tray button:hover { background: var(--panel-2); }
+  .tray button:active { transform: scale(.82); }
+  .tray .poke { grid-column: 1 / -1; width: auto; height: 44px; font-size: 15px; font-weight: 800; background: var(--panel-2); border: 1px solid var(--line); }
+  .tray .poke:disabled { opacity: .45; }
+
+  #rx { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
+  .rx-big { position: absolute; left: 50%; top: 44%; font-size: clamp(120px, 36vw, 180px); line-height: 1; margin: -.5em 0 0 -.5em; width: 1em; height: 1em; text-align: center; filter: drop-shadow(0 16px 30px rgba(0,0,0,.55)); }
+  .rx-ring { position: absolute; left: 50%; top: 44%; width: 140px; height: 140px; margin: -70px 0 0 -70px; border-radius: 50%; border: 5px solid rgba(255,255,255,.85); }
+  .rx-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 44%, rgba(255,255,255,.22), transparent 55%); }
+  .rx-bit { position: absolute; left: 50%; top: 44%; width: 40px; height: 40px; margin: -20px 0 0 -20px; font-size: 36px; line-height: 40px; text-align: center; }
+  .rx-tag { position: absolute; left: 50%; top: calc(44% + 104px); translate: -50% 0; white-space: nowrap; padding: 7px 16px; border-radius: 999px; background: rgba(10,12,18,.7); border: 1px solid rgba(255,255,255,.14); font-weight: 800; font-size: 15px; backdrop-filter: blur(8px); }
+  .rx-trail { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; font-size: 36px; line-height: 44px; text-align: center; }
+
+  .bubble {
+    position: absolute; left: 58px; top: 50px; z-index: 20; max-width: min(260px, 68vw);
+    padding: 9px 13px; border-radius: 18px; border-top-left-radius: 5px; background: var(--ink); color: #121212;
+    font-weight: 600; font-size: 15px; line-height: 1.3; box-shadow: 0 12px 30px rgba(0,0,0,.45); overflow-wrap: anywhere;
+    transform-origin: 0 0; pointer-events: none;
+  }
+  .bubble.typing { display: flex; gap: 5px; padding: 13px 15px; }
+  .bubble.typing i { width: 7px; height: 7px; border-radius: 50%; background: #555; animation: tdot 1s infinite; }
+  .bubble.typing i:nth-child(2) { animation-delay: .15s; } .bubble.typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes tdot { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+  .poked { animation: poked .5s; }
+  @keyframes poked { 15%, 55% { translate: -10px 0; } 35%, 75% { translate: 10px 0; } }
+
+  .drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; max-width: 560px; margin: 0 auto;
+    height: min(74dvh, 580px); background: var(--panel); border: 1px solid var(--line); border-bottom: 0;
+    border-radius: 26px 26px 0 0; display: flex; flex-direction: column; box-shadow: 0 -24px 70px rgba(0,0,0,.55);
+    transform: translateY(105%); transition: transform .38s var(--ease); visibility: hidden;
+  }
+  .drawer.open { transform: none; visibility: visible; }
+  .drawer-shade { position: fixed; inset: 0; z-index: 54; background: rgba(5,6,10,.45); opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .drawer-shade.open { opacity: 1; pointer-events: auto; }
+  .drawer-head { display: flex; align-items: center; gap: 12px; padding: 14px 14px 12px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head .avatar { width: 42px; height: 42px; font-size: 22px; }
+  .drawer-head .who { flex: 1; }
+  .drawer-head .who span { min-height: 16px; }
+  .msgs { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
+  .msg { max-width: 78%; padding: 9px 13px; border-radius: 19px; font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; animation: msgin .28s var(--ease); }
+  .msg.me { align-self: flex-end; background: var(--B); color: #fff; border-bottom-right-radius: 6px; }
+  .msg.them { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+  .msg.sys { align-self: center; background: none; color: var(--muted); font-size: 13px; padding: 4px; }
+  .msg.big { font-size: 40px; background: none !important; border: 0 !important; padding: 0 4px; }
+  @keyframes msgin { from { transform: translateY(10px) scale(.95); opacity: 0; } }
+  .quick { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px 4px; scrollbar-width: none; }
+  .quick::-webkit-scrollbar { display: none; }
+  .quick button { flex: none; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); font-size: 14px; font-weight: 600; }
+  .composer { display: flex; gap: 8px; padding: 8px 12px max(12px, env(safe-area-inset-bottom)); }
+  .composer input { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 0 18px; font: inherit; font-size: 16px; }
+  .composer input:focus { outline: none; border-color: var(--ink); }
+  .composer button { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--ink); color: #111; display: grid; place-items: center; flex: none; }
+  .composer button svg { width: 20px; height: 20px; }
+
+  .profile { display: flex; flex-direction: column; gap: 10px; }
+  .name-in { font: inherit; font-size: 17px; font-weight: 700; min-height: 50px; border-radius: 16px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 0 16px; width: 100%; }
+  .name-in:focus { outline: none; border-color: var(--ink); }
+  .ava-pick { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+  .ava-pick::-webkit-scrollbar { display: none; }
+  .ava-pick button { width: 46px; height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel-2); font-size: 24px; flex: none; }
+  .ava-pick button[aria-pressed="true"] { border: 2px solid var(--ink); background: var(--bg); }
+  .lbl { font-size: 13px; color: var(--muted); font-weight: 600; }
+
   @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
   @media (min-height: 820px) { :root { --cw0: clamp(62px, 18.5vw, 92px); } }
 </style>
@@ -259,6 +347,12 @@
     <p>Match colours, stack the pressure, shout before you're caught.</p>
   </div>
   <div class="panel">
+    <div class="profile">
+      <label class="lbl" for="nameIn">Your name</label>
+      <input id="nameIn" class="name-in" maxlength="16" placeholder="Player" autocomplete="nickname">
+      <span class="lbl">Your avatar</span>
+      <div class="ava-pick" id="avaPick" role="group" aria-label="Pick an avatar"></div>
+    </div>
     <button class="btn" id="cpuBtn">Play vs Computer</button>
     <button class="btn alt" id="createBtn">Create online game</button>
     <div class="divider">or join a friend</div>
@@ -307,6 +401,7 @@
     <div class="avatar" id="oppAvatar">F</div>
     <div class="who"><b id="oppName">Friend</b><span id="oppCount">7 cards</span></div>
     <div class="opp-hand" id="oppHand"></div>
+    <div id="bubbleSlot"></div>
   </div>
 
   <div class="table">
@@ -324,12 +419,41 @@
     <div class="hand-wrap" id="handWrap"><div class="hand" id="hand"></div></div>
   </div>
 
-  <div class="actions">
-    <button class="act primary hidden" id="drawBtn">Draw</button>
-    <button class="act hidden" id="keepBtn">Keep it</button>
-    <button class="act shout hidden" id="shoutBtn">LAST CARD!</button>
-    <button class="act catch hidden" id="catchBtn">Catch! +2</button>
+  <div class="dock">
+    <button class="round-btn" id="chatBtn" aria-label="Open chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 01-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1121 12z"/></svg>
+      <span class="unread hidden" id="unread">0</span>
+    </button>
+    <div class="actions">
+      <button class="act primary hidden" id="drawBtn">Draw</button>
+      <button class="act hidden" id="keepBtn">Keep it</button>
+      <button class="act shout hidden" id="shoutBtn">LAST CARD!</button>
+      <button class="act catch hidden" id="catchBtn">Catch! +2</button>
+    </div>
+    <button class="round-btn" id="reactBtn" aria-label="Send a reaction" aria-expanded="false">😄</button>
   </div>
+</section>
+
+<div class="tray hidden" id="tray" role="dialog" aria-label="Reactions"></div>
+<div id="rx"></div>
+
+<div class="drawer-shade" id="shade"></div>
+<section class="drawer" id="drawer" role="dialog" aria-label="Chat">
+  <div class="drawer-head">
+    <div class="avatar" id="chatAvatar">🙂</div>
+    <div class="who"><b id="chatName">Friend</b><span id="chatSub">online</span></div>
+    <button class="icon-btn" id="chatClose" aria-label="Close chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </div>
+  <div class="msgs" id="msgs" aria-live="polite"></div>
+  <div class="quick" id="quick"></div>
+  <form class="composer" id="composer" autocomplete="off">
+    <input id="chatIn" maxlength="200" placeholder="Message…" aria-label="Message" enterkeyhint="send">
+    <button type="submit" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+  </form>
 </section>
 
 <div id="fx"></div>
@@ -717,7 +841,7 @@
     // scores
     $('score').innerHTML = 'You <b>' + v.scores[v.me] + '</b><span>·</span><b>' + v.scores[1 - v.me] + '</b> ' + oppName();
   }
-  const oppName = () => mode === 'cpu' ? 'Computer' : 'Friend';
+  const oppName = () => oppProfile.name;
 
   function layoutHand() {
     const els = [...handEl.children], n = els.length;
@@ -884,6 +1008,7 @@
 
     if (v.winner == null && v.turn === v.me && !wasMyTurn && !isDeal) sfx.turn();
     if (v.winner == null && isDeal && v.turn === v.me) { toast('You start', null, 900); }
+    if (mode === 'cpu') cpuReact(ev, v);
     if (v.winner != null) { await sleep(350); showResult(v); }
   }
 
@@ -978,6 +1103,7 @@
     clearTimeout(cpuTimer); queue.length = 0; view = null; G = null; round = 0; armed = false;
     handEl.innerHTML = ''; pileEl.innerHTML = ''; oppHandEl.innerHTML = ''; fx.innerHTML = '';
     hideResult(); $('pickerModal').classList.add('hidden');
+    closeTray(); closeChat();
   }
   function cleanup() {
     try { conn && conn.close(); } catch (e) {}
@@ -990,8 +1116,9 @@
 
   function enterGame(m) {
     resetTable(); mode = m;
-    $('oppName').textContent = oppName();
-    $('oppAvatar').textContent = m === 'cpu' ? 'C' : 'F';
+    oppProfile = m === 'cpu' ? { name: 'Computer', avatar: '🤖' } : { name: 'Friend', avatar: '🙂' };
+    resetSocial();
+    paintOpp();
     show('game');
   }
 
@@ -1035,12 +1162,14 @@
     c.on('open', () => {
       history.replaceState(null, '', location.pathname);
       const m = mode; enterGame(m);
+      send({ t: 'hello', name: myProfile.name, avatar: myProfile.avatar });
       if (m === 'host') startRound(0);
     });
     c.on('data', msg => {
       if (!msg || typeof msg !== 'object') return;
       if (msg.t === 'full') { toLobby('That game already has two players.'); return; }
-      if (msg.t === 'bye') { toLobby('Your friend left the game.'); return; }
+      if (msg.t === 'bye') { toLobby(oppName() + ' left the game.'); return; }
+      if (onSocial(msg)) return;
       if (mode === 'guest') {
         if (msg.t === 'view' && msg.v) enqueue(msg.v);
       } else if (mode === 'host') {
@@ -1080,6 +1209,266 @@
   }
   const roomParam = new URLSearchParams(location.search).get('room');
   if (roomParam && typeof Peer !== 'undefined') { $('codeInput').value = roomParam.toUpperCase(); join(roomParam); }
+
+
+  /* =========================================================
+     SOCIAL: profiles, reactions, chat, poke
+     ========================================================= */
+  const AVATARS = ['😎','🦊','🐼','🐯','🦁','🐸','👻','🤠','🦄','🐙','🍕','🚀'];
+  const REACTS = ['😂','😮','😡','😎','🔥','👏','😭','😈','🤝','💀'];
+  const QUICK = ['Nice one!', 'Hurry up 😴', 'Oops 🙈', 'Not again!', 'GG 🤝', 'Rematch?', 'Lucky!', 'Watch this 😏'];
+  let myProfile = { name: 'Player', avatar: AVATARS[0] };
+  try { const saved = JSON.parse(localStorage.getItem('lastcard-profile') || 'null'); if (saved && typeof saved.name === 'string' && AVATARS.includes(saved.avatar)) myProfile = { name: saved.name.slice(0, 16) || 'Player', avatar: saved.avatar }; } catch (e) {}
+  let oppProfile = { name: 'Friend', avatar: '🙂' };
+  let unread = 0, chatOpen = false, typingTimer = null, lastTypingSent = 0, lastPoke = 0, lastReact = 0, bubbleTimer = null;
+
+  function saveProfile() { try { localStorage.setItem('lastcard-profile', JSON.stringify(myProfile)); } catch (e) {} }
+  $('nameIn').value = myProfile.name === 'Player' ? '' : myProfile.name;
+  $('nameIn').addEventListener('input', e => { myProfile.name = e.target.value.trim().slice(0, 16) || 'Player'; saveProfile(); });
+  AVATARS.forEach(a => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = a; b.setAttribute('aria-label', 'Avatar ' + a);
+    b.setAttribute('aria-pressed', a === myProfile.avatar ? 'true' : 'false');
+    b.onclick = () => { myProfile.avatar = a; saveProfile(); [...$('avaPick').children].forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); };
+    $('avaPick').appendChild(b);
+  });
+
+  function paintOpp() {
+    $('oppName').textContent = oppProfile.name; $('oppAvatar').textContent = oppProfile.avatar;
+    $('chatName').textContent = oppProfile.name; $('chatAvatar').textContent = oppProfile.avatar;
+    $('chatSub').textContent = mode === 'cpu' ? 'bot · always online' : 'online';
+    if (view) render({ keepPile: true });
+  }
+  function resetSocial() {
+    unread = 0; paintUnread(); $('msgs').innerHTML = ''; clearBubble();
+    sysMsg(mode === 'cpu' ? 'Say hi to the computer — it talks back.' : 'Chat with your friend while you play.');
+  }
+
+  /* ---- reactions ---- */
+  REACTS.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = r; b.setAttribute('aria-label', 'React ' + r);
+    b.onclick = () => { sendReact(i); closeTray(); };
+    $('tray').appendChild(b);
+  });
+  const pokeBtn = document.createElement('button');
+  pokeBtn.type = 'button'; pokeBtn.className = 'poke'; pokeBtn.textContent = '👉 Poke — hurry them up';
+  pokeBtn.onclick = () => { sendPoke(); closeTray(); };
+  $('tray').appendChild(pokeBtn);
+
+  function openTray() {
+    const t = $('tray'); t.classList.remove('hidden'); $('reactBtn').classList.add('on'); $('reactBtn').setAttribute('aria-expanded', 'true');
+    pokeBtn.disabled = Date.now() - lastPoke < 5000;
+    t.animate([{ opacity: 0, transform: 'scale(.6) translateY(20px)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 260, easing: 'cubic-bezier(.2,1.3,.4,1)' });
+    [...t.children].forEach((b, i) => b.animate([{ opacity: 0, transform: 'translateY(12px) scale(.6)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: i * 18, easing: 'cubic-bezier(.2,1.3,.4,1)', fill: 'backwards' }));
+  }
+  function closeTray() { $('tray').classList.add('hidden'); $('reactBtn').classList.remove('on'); $('reactBtn').setAttribute('aria-expanded', 'false'); }
+  $('reactBtn').onclick = e => { e.stopPropagation(); $('tray').classList.contains('hidden') ? openTray() : closeTray(); };
+  document.addEventListener('click', e => { if (!$('tray').classList.contains('hidden') && !$('tray').contains(e.target)) closeTray(); });
+
+  function sendReact(i) {
+    const now = Date.now(); if (now - lastReact < 600) return; lastReact = now;
+    showReaction(REACTS[i], true);
+    send({ t: 'react', i });
+  }
+  function showReaction(emoji, mine) {
+    const rx = $('rx');
+    const W = window.innerWidth, H = window.innerHeight, cx = W / 2, cy = H * .44;
+    // where it comes from: my side (bottom) or their avatar (top)
+    const src = mine ? { x: W - 40, y: H - 60 } : (() => { const r = $('oppAvatar').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })();
+
+    const trail = document.createElement('div'); trail.className = 'rx-trail'; trail.textContent = emoji;
+    trail.style.left = src.x + 'px'; trail.style.top = src.y + 'px'; rx.appendChild(trail);
+    trail.animate([
+      { transform: 'translate(0,0) scale(.6)', opacity: 0 },
+      { transform: 'translate(' + ((cx - src.x) * .5) + 'px,' + ((cy - src.y) * .5 - 40) + 'px) scale(1.4)', opacity: 1, offset: .5 },
+      { transform: 'translate(' + (cx - src.x) + 'px,' + (cy - src.y) + 'px) scale(2.4)', opacity: 0 }
+    ], { duration: 360, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }).finished.then(() => trail.remove());
+
+    setTimeout(() => {
+      const flash = document.createElement('div'); flash.className = 'rx-flash'; rx.appendChild(flash);
+      flash.animate([{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 0 }], { duration: 900, fill: 'forwards' }).finished.then(() => flash.remove());
+
+      const ring = document.createElement('div'); ring.className = 'rx-ring'; rx.appendChild(ring);
+      ring.animate([{ transform: 'scale(.3)', opacity: .9 }, { transform: 'scale(2.8)', opacity: 0 }], { duration: 700, easing: 'cubic-bezier(.1,.7,.3,1)', fill: 'forwards' }).finished.then(() => ring.remove());
+
+      const big = document.createElement('div'); big.className = 'rx-big'; big.textContent = emoji; rx.appendChild(big);
+      big.animate([
+        { transform: 'scale(.2) rotate(-25deg)', opacity: 0 },
+        { transform: 'scale(1.25) rotate(8deg)', opacity: 1, offset: .16 },
+        { transform: 'scale(.95) rotate(-5deg)', opacity: 1, offset: .28 },
+        { transform: 'scale(1.05) rotate(3deg)', opacity: 1, offset: .4 },
+        { transform: 'scale(1) rotate(0deg)', opacity: 1, offset: .72 },
+        { transform: 'scale(1.1) translateY(-90px)', opacity: 0 }
+      ], { duration: 1800, easing: 'ease-out', fill: 'forwards' }).finished.then(() => big.remove());
+
+      const N = 16;
+      for (let k = 0; k < N; k++) {
+        const bit = document.createElement('div'); bit.className = 'rx-bit'; bit.textContent = emoji; rx.appendChild(bit);
+        const ang = (k / N) * Math.PI * 2 + Math.random() * .4, dist = 120 + Math.random() * Math.min(W, H) * .32;
+        const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist, sc = .5 + Math.random() * .7, spin = (Math.random() - .5) * 540;
+        bit.animate([
+          { transform: 'translate(0,0) scale(.2) rotate(0deg)', opacity: 0 },
+          { transform: 'translate(' + dx * .7 + 'px,' + dy * .7 + 'px) scale(' + sc + ') rotate(' + spin * .6 + 'deg)', opacity: 1, offset: .35 },
+          { transform: 'translate(' + dx + 'px,' + (dy + 140) + 'px) scale(' + sc * .8 + ') rotate(' + spin + 'deg)', opacity: 0 }
+        ], { duration: 1300 + Math.random() * 500, delay: 40 + Math.random() * 120, easing: 'cubic-bezier(.15,.7,.4,1)', fill: 'both' }).finished.then(() => bit.remove());
+      }
+
+      const tag = document.createElement('div'); tag.className = 'rx-tag';
+      tag.textContent = mine ? 'You' : oppProfile.avatar + ' ' + oppProfile.name;
+      rx.appendChild(tag);
+      tag.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none', offset: .15 }, { opacity: 1, offset: .75 }, { opacity: 0 }], { duration: 1700, fill: 'forwards' }).finished.then(() => tag.remove());
+
+      if (!mine) $('oppAvatar').animate([{ transform: 'scale(1)' }, { transform: 'scale(1.3) rotate(-10deg)' }, { transform: 'scale(1)' }], { duration: 450, easing: 'cubic-bezier(.2,1.4,.4,1)' });
+      tone(700, 1100, .08, 'sine', .08); tone(1100, 1500, .1, 'sine', .06, .07);
+      buzz(mine ? 15 : [20, 30, 20]);
+    }, 300);
+  }
+
+  /* ---- poke ---- */
+  function sendPoke() {
+    const now = Date.now(); if (now - lastPoke < 5000) return; lastPoke = now;
+    toast('Poked ' + oppProfile.name + ' 👉', null, 900);
+    if (mode === 'cpu') { setTimeout(() => botSay(['Relax, I\'m thinking 😤', 'Patience!', 'Okay okay 🙄', 'Stop poking me 😂'][Math.floor(Math.random() * 4)]), 900); return; }
+    send({ t: 'poke' });
+  }
+  function gotPoked() {
+    const g = $('game'); g.classList.remove('poked'); void g.offsetWidth; g.classList.add('poked');
+    buzz([120, 60, 120]); tone(300, 200, .15, 'square', .06); tone(300, 200, .15, 'square', .06, .2);
+    toast(oppProfile.name + ' poked you!', 'Y', 1300);
+  }
+
+  /* ---- chat ---- */
+  QUICK.forEach(q => { const b = document.createElement('button'); b.type = 'button'; b.textContent = q; b.onclick = () => sendChat(q); $('quick').appendChild(b); });
+  REACTS.slice(0, 6).forEach(r => { const b = document.createElement('button'); b.type = 'button'; b.textContent = r; b.style.fontSize = '20px'; b.onclick = () => sendChat(r); $('quick').appendChild(b); });
+
+  function openChat() {
+    chatOpen = true; unread = 0; paintUnread(); closeTray();
+    $('drawer').classList.add('open'); $('shade').classList.add('open'); $('chatBtn').setAttribute('aria-label', 'Close chat');
+    const m = $('msgs'); m.scrollTop = m.scrollHeight;
+    setTimeout(() => { try { $('chatIn').focus({ preventScroll: true }); } catch (e) {} }, 320);
+  }
+  function closeChat() {
+    chatOpen = false; $('drawer').classList.remove('open'); $('shade').classList.remove('open'); $('chatBtn').setAttribute('aria-label', 'Open chat');
+    try { $('chatIn').blur(); } catch (e) {}
+  }
+  $('chatBtn').onclick = () => chatOpen ? closeChat() : openChat();
+  $('chatClose').onclick = closeChat; $('shade').onclick = closeChat;
+  $('composer').addEventListener('submit', e => { e.preventDefault(); const t = $('chatIn').value; $('chatIn').value = ''; sendChat(t); });
+  $('chatIn').addEventListener('input', () => {
+    const now = Date.now();
+    if (mode !== 'cpu' && now - lastTypingSent > 1500 && $('chatIn').value.trim()) { lastTypingSent = now; send({ t: 'typing' }); }
+  });
+
+  function paintUnread() { const u = $('unread'); u.textContent = unread > 9 ? '9+' : unread; u.classList.toggle('hidden', !unread); }
+  const isEmojiOnly = t => /^(\p{Extended_Pictographic}|️|‍|\s)+$/u.test(t) && t.trim().length <= 8;
+  function addMsg(text, who) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + who + (who !== 'sys' && isEmojiOnly(text) ? ' big' : '');
+    d.textContent = text;
+    const m = $('msgs'); m.appendChild(d);
+    while (m.children.length > 120) m.firstChild.remove();
+    m.scrollTop = m.scrollHeight;
+  }
+  function sysMsg(t) { addMsg(t, 'sys'); }
+  function sendChat(text) {
+    text = String(text || '').trim().slice(0, 200);
+    if (!text) return;
+    addMsg(text, 'me'); tone(880, 1200, .06, 'sine', .05);
+    if (mode === 'cpu') botReply(text); else send({ t: 'chat', text });
+  }
+  function gotChat(text) {
+    text = String(text || '').trim().slice(0, 200);
+    if (!text) return;
+    stopTyping();
+    addMsg(text, 'them');
+    if (!chatOpen) { unread++; paintUnread(); $('chatBtn').animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }], { duration: 350 }); }
+    showBubble(text);
+    tone(1000, 760, .08, 'sine', .07); buzz(15);
+  }
+  function clearBubble() { clearTimeout(bubbleTimer); $('bubbleSlot').innerHTML = ''; }
+  function showBubble(text) {
+    clearBubble();
+    const b = document.createElement('div'); b.className = 'bubble';
+    b.textContent = text.length > 90 ? text.slice(0, 88) + '…' : text;
+    $('bubbleSlot').appendChild(b);
+    b.animate([{ transform: 'scale(.4)', opacity: 0 }, { transform: 'scale(1.05)', opacity: 1, offset: .6 }, { transform: 'scale(1)', opacity: 1 }], { duration: 300, easing: 'cubic-bezier(.2,1.3,.4,1)' });
+    bubbleTimer = setTimeout(() => { b.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 250, fill: 'forwards' }).finished.then(() => b.remove()); }, Math.min(6000, 2600 + text.length * 45));
+  }
+  function showTyping() {
+    $('chatSub').textContent = 'typing…';
+    if (!$('bubbleSlot').querySelector('.bubble:not(.typing)')) {
+      clearBubble();
+      const b = document.createElement('div'); b.className = 'bubble typing'; b.innerHTML = '<i></i><i></i><i></i>';
+      $('bubbleSlot').appendChild(b);
+    }
+    clearTimeout(typingTimer); typingTimer = setTimeout(stopTyping, 3000);
+  }
+  function stopTyping() {
+    clearTimeout(typingTimer);
+    $('chatSub').textContent = mode === 'cpu' ? 'bot · always online' : 'online';
+    const t = $('bubbleSlot').querySelector('.bubble.typing'); if (t) t.remove();
+  }
+
+  /* ---- incoming social messages (online) ---- */
+  function onSocial(msg) {
+    switch (msg.t) {
+      case 'hello':
+        oppProfile = {
+          name: (typeof msg.name === 'string' && msg.name.trim()) ? msg.name.trim().slice(0, 16) : 'Friend',
+          avatar: AVATARS.includes(msg.avatar) ? msg.avatar : '🙂'
+        };
+        paintOpp(); sysMsg(oppProfile.avatar + ' ' + oppProfile.name + ' joined the table');
+        return true;
+      case 'react': if (Number.isInteger(msg.i) && REACTS[msg.i]) showReaction(REACTS[msg.i], false); return true;
+      case 'chat': gotChat(msg.text); return true;
+      case 'typing': showTyping(); return true;
+      case 'poke': gotPoked(); return true;
+    }
+    return false;
+  }
+
+  /* ---- computer personality ---- */
+  function botSay(text, delay) {
+    setTimeout(() => {
+      if (mode !== 'cpu') return;
+      showTyping();
+      setTimeout(() => { if (mode === 'cpu') gotChat(text); }, 700 + Math.min(1600, text.length * 40));
+    }, delay || 0);
+  }
+  function botReact(i, delay) { setTimeout(() => { if (mode === 'cpu') showReaction(REACTS[i], false); }, delay || 500); }
+  function botReply(text) {
+    const t = text.toLowerCase();
+    let r;
+    if (/\b(hi|hello|hey|yo|namaste)\b/.test(t)) r = ['Hey! Ready to lose? 😏', 'Hello human 🤖', 'Yo! Shuffle up.'];
+    else if (/\bgg\b|good game|well played/.test(t)) r = ['GG! Rematch? 🤝', 'Well played 👏'];
+    else if (/lol|haha|😂|🤣/.test(t)) r = ['😂', 'Glad you\'re having fun', 'Laugh now…'];
+    else if (/cheat|unfair|rigged/.test(t)) r = ['Me? Never 😇', 'The deck decides, not me', 'Skill issue 😎'];
+    else if (/hurry|fast|slow|😴/.test(t)) r = ['Calculating… 🧮', 'Good things take time'];
+    else if (/lucky|luck/.test(t)) r = ['Luck? That was strategy 😤', 'Call it what you want 😏'];
+    else if (/rematch|again/.test(t)) r = ['Always. Bring it on 🔥', 'You\'re on!'];
+    else if (/\?$/.test(t)) r = ['Hmm, maybe 🤔', 'Ask me after this round', 'Can\'t say, I\'m busy winning'];
+    else r = ['Interesting… 🤔', 'Noted 📝', 'Focus on your cards 😏', '👀', 'Bold words'];
+    if (Math.random() < .2) { botReact([0, 4, 5, 1][Math.floor(Math.random() * 4)], 900); return; }
+    botSay(r[Math.floor(Math.random() * r.length)], 300);
+  }
+  let botCooldown = 0;
+  function cpuReact(ev, v) {
+    const now = Date.now(); if (now - botCooldown < 3500) return;
+    const chance = p => Math.random() < p;
+    let fired = false;
+    const fire = (fn) => { if (!fired) { fired = true; botCooldown = now; fn(); } };
+    for (const e of ev) {
+      if (e.type === 'play' && e.by === 1 && e.card.v === 'W4' && chance(.7)) fire(() => { botReact(7, 400); botSay('Take that 😈', 1200); });
+      else if (e.type === 'give' && e.to === 1 && (e.why === '+2' || e.why === '+4') && chance(.55)) fire(() => botReact(e.why === '+4' ? 2 : 6, 600));
+      else if (e.type === 'give' && e.to === 1 && e.why === 'caught') fire(() => { botReact(1, 500); botSay('Nooo, I was about to say it!', 1300); });
+      else if (e.type === 'give' && e.to === 0 && e.why === 'caught') fire(() => botReact(0, 500));
+      else if (e.type === 'give' && e.to === 0 && e.why === '+4' && chance(.4)) fire(() => botSay('Sorry not sorry 😇', 600));
+      else if (e.type === 'shout' && e.by === 0 && chance(.35)) fire(() => botSay('Uh oh 👀', 500));
+    }
+    if (v.winner === 1) fire(() => { botReact(3, 1500); botSay(['Too easy 😎', 'GG! Want a rematch?', 'Better luck next round'][Math.floor(Math.random() * 3)], 2400); });
+    else if (v.winner === 0 && chance(.8)) fire(() => { botReact(5, 1500); botSay(['Well played 👏', 'Okay you got me 😭', 'Rematch. Now.'][Math.floor(Math.random() * 3)], 2500); });
+  }
 
   // exposed for automated checks only
   window.__lastcard = { newGame, act, canPlay, viewFor };
