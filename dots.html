@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f3ee">
+<title>Dots &amp; Boxes — Play with a friend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f3ee;
+    --card: #ffffff;
+    --ink: #1b1a17;
+    --muted: #5f5b53;
+    --line: #d9d3c7;
+    --ghost: #ebe6dc;
+    --a: #c4471f;
+    --a-soft: #f8d9cc;
+    --b: #1f5fc4;
+    --b-soft: #d3e2fa;
+    --btn: #1b1a17;
+    --btn-ink: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151412;
+      --card: #1f1e1b;
+      --ink: #f2efe8;
+      --muted: #aaa49a;
+      --line: #3a3833;
+      --ghost: #2c2a26;
+      --a: #ff7a52;
+      --a-soft: #4a2519;
+      --b: #6aa2ff;
+      --b-soft: #1c2c48;
+      --btn: #f2efe8;
+      --btn-ink: #151412;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    display: flex; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 16px; }
+  header a { color: var(--muted); font-size: 14px; display: inline-block; padding: 8px 0; }
+  h1 { margin: 4px 0 0; font-family: 'Archivo Black', sans-serif; font-size: 34px; line-height: 1.05; }
+  h1 .a { color: var(--a); } h1 .b { color: var(--b); }
+  p.sub { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  button {
+    font: inherit; font-weight: 700; font-size: 16px;
+    min-height: 48px; border-radius: 12px; border: 2px solid var(--btn);
+    background: var(--btn); color: var(--btn-ink); cursor: pointer; padding: 0 16px;
+  }
+  button.ghost { background: transparent; color: var(--ink); }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  label, .lbl { font-size: 14px; color: var(--muted); }
+  input {
+    font: inherit; font-size: 22px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase;
+    min-height: 48px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+    padding: 0 14px; width: 100%;
+  }
+  input:focus { outline: none; border-color: var(--ink); }
+  .divider { text-align: center; color: var(--muted); font-size: 13px; }
+  .code { font-size: 40px; font-weight: 700; letter-spacing: 8px; text-align: center; }
+  .status { min-height: 24px; font-size: 18px; font-weight: 700; text-align: center; }
+  .note { font-size: 13px; color: var(--muted); text-align: center; margin: 0; }
+  .hidden { display: none !important; }
+  details { font-size: 14px; color: var(--muted); }
+  details summary { cursor: pointer; font-weight: 700; color: var(--ink); min-height: 32px; }
+  details ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+
+  .sizes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .sizes button { background: transparent; color: var(--ink); border-color: var(--line); font-size: 15px; padding: 0; }
+  .sizes button[aria-pressed="true"] { border-color: var(--ink); background: var(--bg); }
+
+  /* scoreboard */
+  .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pl { border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .pl .who { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .pl .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .pl .pts { font-size: 26px; font-weight: 700; }
+  .pl.A .dot { background: var(--a); } .pl.B .dot { background: var(--b); }
+  .pl.A.turn { border-color: var(--a); background: var(--a-soft); }
+  .pl.B.turn { border-color: var(--b); background: var(--b-soft); }
+  .tally { font-size: 13px; color: var(--muted); text-align: center; }
+
+  /* board */
+  .board {
+    --d: 12px;
+    display: grid; width: 100%; aspect-ratio: 1;
+    padding: 6px; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  .dotc { width: var(--d); height: var(--d); border-radius: 50%; background: var(--ink); z-index: 3; align-self: center; justify-self: center; }
+  .edge { position: relative; border: 0; padding: 0; min-height: 0; border-radius: 0; background: transparent; z-index: 2; cursor: pointer; }
+  .edge::before { content: ''; position: absolute; border-radius: 4px; background: var(--ghost); transition: background .15s; }
+  .edge.h::before { left: 2px; right: 2px; top: calc(50% - 3px); height: 6px; }
+  .edge.v::before { top: 2px; bottom: 2px; left: calc(50% - 3px); width: 6px; }
+  /* bigger invisible tap area */
+  .edge::after { content: ''; position: absolute; }
+  .edge.h::after { left: 4px; right: 4px; top: -16px; bottom: -16px; }
+  .edge.v::after { top: 4px; bottom: 4px; left: -16px; right: -16px; }
+  .edge:not(:disabled):hover::before { background: var(--muted); }
+  .edge.A::before { background: var(--a); }
+  .edge.B::before { background: var(--b); }
+  .edge.last::before { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px currentColor; }
+  .edge.A.last { color: var(--a); } .edge.B.last { color: var(--b); }
+  .edge:disabled { cursor: default; opacity: 1; }
+  .box {
+    z-index: 1; margin: 3px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif; font-size: clamp(14px, 5vw, 24px);
+  }
+  .box.A { background: var(--a-soft); color: var(--a); animation: fill .25s ease-out; }
+  .box.B { background: var(--b-soft); color: var(--b); animation: fill .25s ease-out; }
+  @keyframes fill { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a href="./">← All games</a>
+    <h1>Dots <span class="a">&amp;</span> <span class="b">Boxes</span></h1>
+    <p class="sub">Join the dots. Close a box, claim it.</p>
+  </header>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="card">
+    <span class="lbl">Board size (boxes)</span>
+    <div class="sizes" id="sizes"></div>
+    <button id="createBtn">Create a game</button>
+    <div class="divider">or join a friend's game</div>
+    <label for="codeInput">Room code</label>
+    <input id="codeInput" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE">
+    <button id="joinBtn" class="ghost">Join</button>
+    <div class="divider">or</div>
+    <button id="localBtn" class="ghost">Play on this device</button>
+    <p id="lobbyMsg" class="note"></p>
+    <details>
+      <summary>How to play</summary>
+      <ol>
+        <li>Take turns tapping between two neighbouring dots to draw a line.</li>
+        <li>If your line closes the fourth side of a box, the box is yours — and you get another turn.</li>
+        <li>When every box is taken, whoever owns the most boxes wins.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- WAITING -->
+  <section id="waiting" class="card hidden">
+    <p class="note">Share this code with your friend</p>
+    <div id="roomCode" class="code">-----</div>
+    <div class="row">
+      <button id="shareBtn">Share link</button>
+      <button id="copyBtn" class="ghost">Copy link</button>
+    </div>
+    <div id="waitMsg" class="status">Waiting for your friend…</div>
+    <button id="cancelBtn" class="ghost">Cancel</button>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="card hidden">
+    <div class="scores">
+      <div id="plA" class="pl A"><span class="who"><span class="dot"></span><span id="nameA">You</span></span><span id="ptsA" class="pts">0</span></div>
+      <div id="plB" class="pl B"><span class="who"><span class="dot"></span><span id="nameB">Friend</span></span><span id="ptsB" class="pts">0</span></div>
+    </div>
+    <div id="status" class="status">&nbsp;</div>
+    <div id="board" class="board" role="grid" aria-label="Dots and boxes board"></div>
+    <div id="tally" class="tally"></div>
+    <div class="row">
+      <button id="againBtn" class="hidden">Play again</button>
+      <button id="leaveBtn" class="ghost">Leave</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const PREFIX = 'dotsgame-v1-';
+  const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const SIZES = [3, 4, 5, 6];
+
+  const $ = id => document.getElementById(id);
+  const show = id => ['lobby','waiting','game'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+
+  let peer = null, conn = null, mode = null, me = 'A';
+  let size = 4, round = 0, turn = 'A', over = false;
+  let H, V, B;                 // H[r][c] (n+1 x n), V[r][c] (n x n+1), B[r][c] owner
+  let edgeEls = {}, boxEls = [];
+  let lastEdge = null;
+  let wins = { A: 0, B: 0, D: 0 };
+
+  // ---------- size picker ----------
+  SIZES.forEach(n => {
+    const b = document.createElement('button');
+    b.textContent = n + '×' + n;
+    b.setAttribute('aria-pressed', n === size ? 'true' : 'false');
+    b.onclick = () => { size = n; [...$('sizes').children].forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); };
+    $('sizes').appendChild(b);
+  });
+
+  // ---------- board ----------
+  function buildBoard(n) {
+    const board = $('board');
+    board.innerHTML = '';
+    edgeEls = {}; boxEls = [];
+    const tracks = [];
+    for (let i = 0; i < n; i++) tracks.push('var(--d)', 'minmax(0, 1fr)');
+    tracks.push('var(--d)');
+    board.style.gridTemplateColumns = tracks.join(' ');
+    board.style.gridTemplateRows = tracks.join(' ');
+
+    for (let gr = 0; gr <= 2 * n; gr++) {
+      for (let gc = 0; gc <= 2 * n; gc++) {
+        const evenR = gr % 2 === 0, evenC = gc % 2 === 0;
+        let el;
+        if (evenR && evenC) {
+          el = document.createElement('div'); el.className = 'dotc';
+        } else if (evenR && !evenC) {
+          const r = gr / 2, c = (gc - 1) / 2, id = 'h-' + r + '-' + c;
+          el = document.createElement('button'); el.className = 'edge h';
+          el.setAttribute('aria-label', 'Line, row ' + (r + 1) + ', between dots ' + (c + 1) + ' and ' + (c + 2));
+          el.onclick = () => onEdge(id);
+          edgeEls[id] = el;
+        } else if (!evenR && evenC) {
+          const r = (gr - 1) / 2, c = gc / 2, id = 'v-' + r + '-' + c;
+          el = document.createElement('button'); el.className = 'edge v';
+          el.setAttribute('aria-label', 'Line, column ' + (c + 1) + ', between dots ' + (r + 1) + ' and ' + (r + 2));
+          el.onclick = () => onEdge(id);
+          edgeEls[id] = el;
+        } else {
+          const r = (gr - 1) / 2, c = (gc - 1) / 2;
+          el = document.createElement('div'); el.className = 'box';
+          (boxEls[r] = boxEls[r] || [])[c] = el;
+        }
+        el.style.gridRow = gr + 1; el.style.gridColumn = gc + 1;
+        board.appendChild(el);
+      }
+    }
+  }
+
+  function newRound(r, n) {
+    round = r; size = n;
+    H = Array.from({ length: n + 1 }, () => Array(n).fill(null));
+    V = Array.from({ length: n }, () => Array(n + 1).fill(null));
+    B = Array.from({ length: n }, () => Array(n).fill(null));
+    turn = round % 2 === 0 ? 'A' : 'B';
+    over = false; lastEdge = null;
+    buildBoard(n);
+    $('againBtn').classList.add('hidden');
+    render();
+  }
+
+  function parse(id) {
+    if (typeof id !== 'string') return null;
+    const m = /^([hv])-(\d+)-(\d+)$/.exec(id);
+    if (!m) return null;
+    const k = m[1], r = +m[2], c = +m[3], n = size;
+    if (k === 'h' && r <= n && c < n) return { k, r, c };
+    if (k === 'v' && r < n && c <= n) return { k, r, c };
+    return null;
+  }
+  const isDrawn = e => (e.k === 'h' ? H[e.r][e.c] : V[e.r][e.c]) != null;
+  const closed = (r, c) => H[r][c] && H[r + 1][c] && V[r][c] && V[r][c + 1];
+
+  function draw(id, who) {
+    const e = parse(id);
+    if (!e || over || who !== turn || isDrawn(e)) return false;
+    if (e.k === 'h') H[e.r][e.c] = who; else V[e.r][e.c] = who;
+    lastEdge = id;
+
+    const cand = e.k === 'h' ? [[e.r - 1, e.c], [e.r, e.c]] : [[e.r, e.c - 1], [e.r, e.c]];
+    let scored = 0;
+    for (const [r, c] of cand) {
+      if (r >= 0 && c >= 0 && r < size && c < size && !B[r][c] && closed(r, c)) { B[r][c] = who; scored++; }
+    }
+    if (navigator.vibrate) navigator.vibrate(scored ? [20, 40, 20] : 10);
+
+    const counts = count();
+    if (counts.A + counts.B === size * size) {
+      over = true;
+      const w = counts.A === counts.B ? 'D' : (counts.A > counts.B ? 'A' : 'B');
+      wins[w]++;
+      $('againBtn').classList.remove('hidden');
+    } else if (!scored) {
+      turn = turn === 'A' ? 'B' : 'A';
+    }
+    render();
+    return true;
+  }
+
+  function count() {
+    let A = 0, Bc = 0;
+    for (const row of B) for (const o of row) { if (o === 'A') A++; else if (o === 'B') Bc++; }
+    return { A, B: Bc };
+  }
+
+  function onEdge(id) {
+    if (mode === 'local') { draw(id, turn); return; }
+    if (!conn || !conn.open || turn !== me) return;
+    if (draw(id, me)) send({ t: 'move', e: id, round });
+  }
+
+  function label(p) {
+    if (mode === 'local') return p === 'A' ? 'Player 1' : 'Player 2';
+    return p === me ? 'You' : 'Friend';
+  }
+
+  function render() {
+    const counts = count();
+    $('nameA').textContent = label('A'); $('nameB').textContent = label('B');
+    $('ptsA').textContent = counts.A; $('ptsB').textContent = counts.B;
+    $('plA').classList.toggle('turn', !over && turn === 'A');
+    $('plB').classList.toggle('turn', !over && turn === 'B');
+
+    let s;
+    if (over) {
+      if (counts.A === counts.B) s = "It's a tie!";
+      else {
+        const w = counts.A > counts.B ? 'A' : 'B';
+        s = mode === 'local' ? label(w) + ' wins!' : (w === me ? 'You win!' : 'Your friend wins');
+      }
+    } else if (mode === 'local') s = label(turn) + "'s turn";
+    else s = turn === me ? 'Your turn' : "Friend's turn…";
+    $('status').textContent = s;
+
+    const myMove = !over && (mode === 'local' || (turn === me && conn && conn.open));
+    for (const id in edgeEls) {
+      const e = parse(id), el = edgeEls[id];
+      const who = e.k === 'h' ? H[e.r][e.c] : V[e.r][e.c];
+      el.className = 'edge ' + e.k + (who ? ' ' + who : '') + (id === lastEdge ? ' last' : '');
+      el.disabled = !!who || !myMove;
+    }
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+      const o = B[r][c], el = boxEls[r][c];
+      const want = 'box' + (o ? ' ' + o : '');
+      if (el.className !== want) { el.className = want; el.textContent = o ? (mode === 'local' ? (o === 'A' ? '1' : '2') : (o === me ? 'Me' : 'F')) : ''; }
+    }
+
+    const tot = wins.A + wins.B + wins.D;
+    $('tally').textContent = tot ? 'Games won — ' + label('A') + ': ' + wins.A + ' · ' + label('B') + ': ' + wins.B + (wins.D ? ' · Ties: ' + wins.D : '') : '';
+  }
+
+  // ---------- networking ----------
+  function send(msg) { if (conn && conn.open) conn.send(msg); }
+  function makeCode() { let s = ''; for (const n of crypto.getRandomValues(new Uint8Array(5))) s += ALPHA[n % ALPHA.length]; return s; }
+  function shareUrl(code) { const u = new URL(location.href); u.search = '?room=' + code; u.hash = ''; return u.toString(); }
+
+  function cleanup() {
+    try { conn && conn.close(); } catch (e) {}
+    try { peer && peer.destroy(); } catch (e) {}
+    conn = null; peer = null; mode = null;
+    history.replaceState(null, '', location.pathname);
+  }
+  function goLobby(msg) { cleanup(); $('lobbyMsg').textContent = msg || ''; show('lobby'); }
+
+  function host() {
+    mode = 'host'; me = 'A';
+    const code = makeCode();
+    $('roomCode').textContent = code;
+    $('waitMsg').textContent = 'Connecting…';
+    show('waiting');
+    peer = new Peer(PREFIX + code);
+    peer.on('open', () => { $('waitMsg').textContent = 'Waiting for your friend… (' + size + '×' + size + ' board)'; });
+    peer.on('connection', c => {
+      if (conn && conn.open) { c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 300); }); return; }
+      wire(c);
+    });
+    peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id') { cleanup(); host(); return; }
+      if (err.type === 'network' || err.type === 'server-error') goLobby("Couldn't reach the connection service. Check your internet and try again.");
+      else if (!conn || !conn.open) $('waitMsg').textContent = 'Connection problem: ' + err.type;
+    });
+  }
+
+  function join(code) {
+    code = (code || '').trim().toUpperCase();
+    if (code.length !== 5) { $('lobbyMsg').textContent = 'Enter the 5-letter room code.'; return; }
+    mode = 'guest'; me = 'B';
+    $('lobbyMsg').textContent = 'Joining ' + code + '…';
+    peer = new Peer();
+    peer.on('open', () => {
+      wire(peer.connect(PREFIX + code, { reliable: true }));
+      setTimeout(() => { if (mode === 'guest' && (!conn || !conn.open)) goLobby('No game found with code ' + code + '. Ask your friend for a fresh code.'); }, 12000);
+    });
+    peer.on('error', err => {
+      if (err.type === 'peer-unavailable') goLobby('No game found with code ' + code + '. Ask your friend for a fresh code.');
+      else if (err.type === 'network' || err.type === 'server-error') goLobby("Couldn't reach the connection service. Check your internet and try again.");
+      else goLobby('Connection problem: ' + err.type);
+    });
+  }
+
+  function wire(c) {
+    conn = c;
+    c.on('open', () => {
+      history.replaceState(null, '', location.pathname);
+      wins = { A: 0, B: 0, D: 0 };
+      if (mode === 'host') { send({ t: 'start', round: 0, size }); newRound(0, size); show('game'); }
+      else { $('lobbyMsg').textContent = 'Connected — starting…'; }
+    });
+    c.on('data', msg => {
+      if (!msg || typeof msg !== 'object') return;
+      switch (msg.t) {
+        case 'full': goLobby('That game already has two players.'); break;
+        case 'start':
+          if (SIZES.includes(msg.size)) { newRound(msg.round | 0, msg.size); show('game'); }
+          break;
+        case 'move':
+          if (msg.round === round && turn !== me) draw(msg.e, turn);
+          break;
+        case 'again':
+          if (Number.isInteger(msg.round) && msg.round > round && SIZES.includes(msg.size)) newRound(msg.round, msg.size);
+          break;
+        case 'bye': goLobby('Your friend left the game.'); break;
+      }
+    });
+    c.on('close', () => { if (mode === 'host' || mode === 'guest') goLobby('Connection lost. Start a new game to play again.'); });
+    c.on('error', () => {});
+  }
+
+  // ---------- buttons ----------
+  $('createBtn').onclick = () => { $('lobbyMsg').textContent = ''; host(); };
+  $('joinBtn').onclick = () => join($('codeInput').value);
+  $('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') join($('codeInput').value); });
+  $('codeInput').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  $('localBtn').onclick = () => { mode = 'local'; wins = { A: 0, B: 0, D: 0 }; newRound(0, size); show('game'); };
+
+  $('againBtn').onclick = () => {
+    if (!over) return;
+    const r = round + 1;
+    if (mode !== 'local') send({ t: 'again', round: r, size });
+    newRound(r, size);
+  };
+  $('leaveBtn').onclick = () => {
+    if (mode === 'local') { mode = null; show('lobby'); return; }
+    send({ t: 'bye' }); setTimeout(() => goLobby(), 150);
+  };
+
+  $('shareBtn').onclick = async () => {
+    const code = $('roomCode').textContent, url = shareUrl(code);
+    if (navigator.share) { try { await navigator.share({ title: 'Dots & Boxes', text: 'Play Dots & Boxes with me! Code: ' + code, url }); } catch (e) {} }
+    else copy(url);
+  };
+  $('copyBtn').onclick = () => copy(shareUrl($('roomCode').textContent));
+  function copy(text) {
+    const done = () => { $('copyBtn').textContent = 'Copied!'; setTimeout(() => $('copyBtn').textContent = 'Copy link', 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => prompt('Copy this link:', text));
+    else prompt('Copy this link:', text);
+  }
+  $('cancelBtn').onclick = () => goLobby();
+  window.addEventListener('beforeunload', () => send({ t: 'bye' }));
+
+  // ---------- start ----------
+  if (typeof Peer === 'undefined') {
+    $('createBtn').disabled = true; $('joinBtn').disabled = true;
+    $('lobbyMsg').textContent = 'Online play could not load. You can still play on this device.';
+  }
+  const roomParam = new URLSearchParams(location.search).get('room');
+  if (roomParam && typeof Peer !== 'undefined') { $('codeInput').value = roomParam.toUpperCase(); join(roomParam); }
+})();
+</script>
+</body>
+</html>

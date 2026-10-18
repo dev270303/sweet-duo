@@ -27,6 +27,7 @@
     --hit: #fbe7a1;
     --tile-a: #fdf0ea;
     --tile-b: #eaf1fd;
+    --tile-c: #eef5ea;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -41,6 +42,7 @@
       --hit: #4a3f12;
       --tile-a: #2a1e19;
       --tile-b: #19212d;
+      --tile-c: #1b261a;
     }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -75,6 +77,7 @@
   .art { aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; }
   .art.a { background: var(--tile-a); }
   .art.b { background: var(--tile-b); }
+  .art.c { background: var(--tile-c); }
   .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .body h3 { margin: 0; font-size: 22px; }
   .body p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.4; flex: 1; }
@@ -108,7 +111,7 @@
   </header>
 
   <section class="stats" aria-label="At a glance">
-    <div class="stat"><div class="v">2</div><div class="k">Games</div></div>
+    <div class="stat"><div class="v">3</div><div class="k">Games</div></div>
     <div class="stat"><div class="v">2</div><div class="k">Players</div></div>
     <div class="stat"><div class="v">0</div><div class="k">Sign-ups</div></div>
   </section>
@@ -148,6 +151,37 @@
         <h3>Bingo</h3>
         <p>Shuffled 1–25 cards. Take turns calling numbers — every full line cuts a letter. First to cut B‑I‑N‑G‑O wins.</p>
         <div class="meta"><span class="chip">2 players</span><span class="chip">~5 min</span><span class="chip">Online</span></div>
+        <div class="play">Play <span class="arrow">→</span></div>
+      </div>
+    </a>
+
+    <a class="tile" href="dots.html">
+      <div class="art c" aria-hidden="true">
+        <svg class="dnb" viewBox="0 0 150 150" width="150" height="150">
+          <rect x="21" y="21" width="48" height="48" rx="6" fill="var(--x)" opacity=".22"/>
+          <rect x="81" y="81" width="48" height="48" rx="6" fill="var(--o)" opacity=".22"/>
+          <g stroke-width="6" stroke-linecap="round">
+            <line x1="15" y1="15" x2="75" y2="15" stroke="var(--x)"/>
+            <line x1="15" y1="15" x2="15" y2="75" stroke="var(--x)"/>
+            <line x1="75" y1="15" x2="75" y2="75" stroke="var(--o)"/>
+            <line x1="15" y1="75" x2="75" y2="75" stroke="var(--x)"/>
+            <line x1="75" y1="75" x2="135" y2="75" stroke="var(--o)"/>
+            <line x1="135" y1="75" x2="135" y2="135" stroke="var(--o)"/>
+            <line x1="75" y1="75" x2="75" y2="135" stroke="var(--x)"/>
+            <line x1="75" y1="135" x2="135" y2="135" stroke="var(--o)"/>
+            <line x1="75" y1="15" x2="135" y2="15" stroke="var(--o)"/>
+          </g>
+          <g fill="var(--ink)">
+            <circle cx="15" cy="15" r="6"/><circle cx="75" cy="15" r="6"/><circle cx="135" cy="15" r="6"/>
+            <circle cx="15" cy="75" r="6"/><circle cx="75" cy="75" r="6"/><circle cx="135" cy="75" r="6"/>
+            <circle cx="15" cy="135" r="6"/><circle cx="75" cy="135" r="6"/><circle cx="135" cy="135" r="6"/>
+          </g>
+        </svg>
+      </div>
+      <div class="body">
+        <h3>Dots &amp; Boxes</h3>
+        <p>Take turns joining dots. Close the fourth side of a box to claim it and go again. Most boxes wins.</p>
+        <div class="meta"><span class="chip">2 players</span><span class="chip">~5 min</span><span class="chip">Online or same device</span></div>
         <div class="play">Play <span class="arrow">→</span></div>
       </div>
     </a>
