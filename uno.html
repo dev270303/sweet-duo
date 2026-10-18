@@ -242,6 +242,18 @@
   .tally b { color: var(--ink); font-size: 20px; }
   .confetti { position: fixed; top: -20px; width: 10px; height: 16px; border-radius: 2px; z-index: 60; pointer-events: none; }
 
+  /* ---------- +4 challenge ---------- */
+  .ch-card { --cw: 74px; margin: 0 auto; transform: rotate(-6deg); }
+  .ch-color { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-weight: 800; color: #fff; vertical-align: 1px; }
+  .ch-color.Y { color: #2a1d00; }
+  .ch-rule { font-size: 13px; color: var(--muted); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; }
+  .ch-rule div { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; line-height: 1.35; }
+  .ch-rule b { color: var(--ink); display: block; margin-bottom: 2px; }
+  .btn.danger { background: var(--R); color: #fff; }
+  .reveal { position: fixed; left: 50%; top: 40%; translate: -50% -50%; z-index: 65; pointer-events: none; background: rgba(16,18,26,.97); border: 1px solid var(--line); border-radius: 22px; padding: 16px 18px; text-align: center; backdrop-filter: blur(8px); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+  .reveal p { margin: 0 0 10px; font-weight: 800; font-size: 17px; }
+  .reveal .row-cards { display: flex; gap: 6px; justify-content: center; --cw: 46px; }
+
   /* ---------- social: dock, reactions, chat ---------- */
   .dock { display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 8px; padding: 4px 12px 2px; }
   .dock .actions { padding: 0; }
@@ -365,7 +377,8 @@
     <ul>
       <li>Everyone starts with 7 cards. Match the top card by <b>colour</b> or <b>number/symbol</b>.</li>
       <li><b>Skip</b> and <b>Reverse</b> give you another turn. <b>+2</b> makes your friend draw 2 and lose their turn.</li>
-      <li><b>Wild</b> lets you pick the colour. <b>Wild +4</b> also makes them draw 4 — allowed only when you have no card of the current colour.</li>
+      <li><b>Wild</b> lets you pick the colour. <b>Wild +4</b> also makes them draw 4 — but you're only supposed to play it when you have <b>no card of the current colour</b>.</li>
+      <li>Think they bluffed a +4? <b>Challenge it!</b> If they had a matching-colour card, <b>they</b> draw 4. If they didn't, you draw 6.</li>
       <li>Can't play? Tap the deck to draw. If the drawn card fits, you can play it or keep it.</li>
       <li>Going down to one card? Tap <b>LAST CARD!</b> first. Forget, and your friend can catch you for +2.</li>
       <li>First to empty their hand wins the round and scores the cards left in the other hand.</li>
@@ -471,6 +484,20 @@
   </div>
 </div>
 
+<div class="scrim hidden" id="challengeModal">
+  <div class="sheet" role="dialog" aria-labelledby="chTitle">
+    <div class="ch-card" id="chCard"></div>
+    <h2 id="chTitle">Wild +4!</h2>
+    <p id="chText"></p>
+    <div class="ch-rule">
+      <div><b>They bluffed?</b>They draw 4, and you play on.</div>
+      <div><b>It was clean?</b>You draw 6 and lose your turn.</div>
+    </div>
+    <button class="btn danger" id="chBtn">Challenge!</button>
+    <button class="btn alt" id="acceptBtn">Accept · draw 4</button>
+  </div>
+</div>
+
 <div class="scrim hidden" id="resultModal">
   <div class="sheet">
     <div class="result-big" id="resBig">You win!</div>
@@ -510,7 +537,7 @@
 
   function newGame(starter, scores) {
     const g = { deck: makeDeck(), pile: [], hands: [[], []], color: null, turn: starter, pending: null,
-                vuln: null, winner: null, points: 0, scores: scores ? scores.slice() : [0, 0], ev: [] };
+                vuln: null, winner: null, points: 0, scores: scores ? scores.slice() : [0, 0], ev: [], challenge: null };
     for (let i = 0; i < 7; i++) { g.hands[0].push(g.deck.pop()); g.hands[1].push(g.deck.pop()); }
     let top = g.deck.pop();
     while (top.c === 'W') { g.deck.unshift(top); top = g.deck.pop(); }
@@ -533,9 +560,9 @@
   }
   function canPlay(g, p, card) {
     if (g.winner != null || g.turn !== p) return false;
+    if (g.challenge) return false;
     if (g.pending != null && card.id !== g.pending) return false;
-    if (card.v === 'W') return true;
-    if (card.v === 'W4') return !g.hands[p].some(x => x.c === g.color);
+    if (card.c === 'W') return true;          // Wild and Wild +4 can always be played (a +4 may be a bluff)
     return card.c === g.color || card.v === topOf(g).v;
   }
   function act(g, p, a) {
@@ -545,6 +572,17 @@
     if (a.t === 'shout') { if (g.vuln === p) { g.vuln = null; g.ev.push({ type: 'shout', by: p }); return null; } return 'no'; }
     if (a.t === 'catch') { if (g.vuln === opp) { g.vuln = null; give(g, opp, 2, 'caught'); return null; } return 'no'; }
     if (g.turn !== p) return 'turn';
+    if (a.t === 'accept' || a.t === 'challenge') {
+      const ch = g.challenge;
+      if (!ch || ch.by !== opp) return 'no';
+      g.challenge = null; g.vuln = null;
+      if (a.t === 'accept') { give(g, p, 4, '+4'); g.turn = opp; return null; }
+      g.ev.push({ type: 'challenge', by: p, guilty: ch.guilty, color: ch.prevColor, proof: ch.proof });
+      if (ch.guilty) { give(g, opp, 4, 'bluff'); g.turn = p; }     // bluffer draws 4, challenger plays on
+      else { give(g, p, 6, 'challenge'); g.turn = opp; }          // clean +4: challenger draws 6 and is skipped
+      return null;
+    }
+    if (g.challenge) return 'challenge';
     if (a.t === 'play') {
       const hand = g.hands[p], i = hand.findIndex(c => c.id === a.id);
       if (i < 0) return 'card';
@@ -552,12 +590,21 @@
       if (!canPlay(g, p, card)) return 'illegal';
       if (card.c === 'W' && !COLORS.includes(a.color)) return 'color';
       g.vuln = null;
+      const prevColor = g.color;
       hand.splice(i, 1); g.pile.push(card); g.pending = null;
       g.color = card.c === 'W' ? a.color : card.c;
       g.ev.push({ type: 'play', by: p, card, color: g.color });
       if (card.v === 'S' || card.v === 'R') { g.turn = p; g.ev.push({ type: 'skip', to: opp }); }
       else if (card.v === 'D2') { give(g, opp, 2, '+2'); g.turn = p; }
-      else if (card.v === 'W4') { give(g, opp, 4, '+4'); g.turn = p; }
+      else if (card.v === 'W4') {
+        if (hand.length === 0) { give(g, opp, 4, '+4'); g.turn = p; }   // going out on a +4: no challenge
+        else {
+          const proof = hand.filter(x => x.c === prevColor);
+          g.challenge = { by: p, prevColor, guilty: proof.length > 0, proof: proof.slice(0, 4) };
+          g.turn = opp;
+          g.ev.push({ type: 'w4', by: p, prevColor });
+        }
+      }
       else g.turn = opp;
       if (hand.length === 0) {
         g.winner = p; g.vuln = null;
@@ -589,6 +636,7 @@
       me: p, hand: g.hands[p].slice(), opp: g.hands[1 - p].length, pile: g.pile.slice(-3),
       color: g.color, turn: g.turn, deck: g.deck.length, pending: g.pending,
       vulnMe: g.vuln === p, vulnOpp: g.vuln === 1 - p, winner: g.winner, points: g.points,
+      challenge: g.challenge ? { by: g.challenge.by, prevColor: g.challenge.prevColor } : null,
       oppHand: g.winner != null ? g.hands[1 - p].slice() : null, scores: g.scores.slice(), round,
       ev: JSON.parse(JSON.stringify(g.ev))
     };
@@ -714,9 +762,9 @@
 
   function playable(v, c) {
     if (!v || v.winner != null || v.turn !== v.me) return false;
+    if (v.challenge) return false;
     if (v.pending != null && c.id !== v.pending) return false;
-    if (c.v === 'W') return true;
-    if (c.v === 'W4') return !v.hand.some(x => x.c === v.color);
+    if (c.c === 'W') return true;
     const t = v.pile[v.pile.length - 1];
     return c.c === v.color || c.v === t.v;
   }
@@ -728,7 +776,6 @@
     if (v.turn !== v.me || v.winner != null) { nudge(el); toast('Not your turn', null, 700); return; }
     if (!playable(v, c)) {
       nudge(el);
-      if (c.v === 'W4') toast('+4 only with no ' + CNAME[v.color], null, 1100);
       return;
     }
     if (c.c === 'W') { pickFor = id; $('pickerModal').classList.remove('hidden'); return; }
@@ -738,6 +785,8 @@
     const v = view;
     const shout = armed && v.hand.length === 2;
     armed = false;
+    const c = v.hand.find(x => x.id === id);
+    if (c && c.v === 'W4' && v.hand.length > 1 && v.hand.some(x => x.c === v.color)) toast('Bluffing… 😏', null, 900);
     submit({ t: 'play', id, color, shout });
   }
   function nudge(el) { if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); sfx.bad(); buzz(30); }
@@ -749,7 +798,9 @@
   });
   $('pickCancel').onclick = () => { pickFor = null; $('pickerModal').classList.add('hidden'); };
 
-  deckEl.onclick = () => { const v = view; if (!v || busy) return; if (v.turn === v.me && v.pending == null && v.winner == null) submit({ t: 'draw' }); else nudge(deckEl); };
+  deckEl.onclick = () => { const v = view; if (!v || busy) return; if (v.turn === v.me && v.pending == null && v.winner == null && !v.challenge) submit({ t: 'draw' }); else nudge(deckEl); };
+  $('chBtn').onclick = () => { if (!busy && view && view.challenge) { $('challengeModal').classList.add('hidden'); submit({ t: 'challenge' }); } };
+  $('acceptBtn').onclick = () => { if (!busy && view && view.challenge) { $('challengeModal').classList.add('hidden'); submit({ t: 'accept' }); } };
   $('drawBtn').onclick = () => deckEl.onclick();
   $('keepBtn').onclick = () => { if (!busy) submit({ t: 'pass' }); };
   $('shoutBtn').onclick = () => {
@@ -821,12 +872,25 @@
     document.documentElement.style.setProperty('--glow', CHEX[v.color] || '#3d63dd');
     let s;
     if (v.winner != null) s = v.winner === v.me ? 'You won the round' : oppName() + ' won the round';
+    else if (v.challenge) s = myTurn ? 'Accept or challenge the +4' : 'Waiting — will ' + oppName() + ' challenge?';
     else if (myTurn) s = v.pending != null ? 'Play it or keep it' : 'Your turn';
     else s = oppName() + ' is thinking…';
     $('statusText').textContent = s + ' · ' + CNAME[v.color];
 
     // actions
-    const canAct = myTurn && !busy;
+    const canAct = myTurn && !busy && !v.challenge;
+    const needDecide = !!v.challenge && v.turn === v.me && v.winner == null && !busy;
+    const chm = $('challengeModal');
+    if (needDecide && chm.classList.contains('hidden')) {
+      $('chCard').innerHTML = ''; $('chCard').appendChild(cardEl(v.pile[v.pile.length - 1], v.color));
+      $('chText').innerHTML = '';
+      $('chText').append(oppName() + ' played +4 while the colour was ');
+      const chip = document.createElement('span'); chip.className = 'ch-color ' + v.challenge.prevColor; chip.style.background = CHEX[v.challenge.prevColor]; chip.textContent = CNAME[v.challenge.prevColor];
+      $('chText').append(chip, '. Did they have a ' + CNAME[v.challenge.prevColor] + ' card?');
+      chm.classList.remove('hidden');
+      chm.querySelector('.sheet').animate([{ transform: 'scale(.85) translateY(20px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: 'cubic-bezier(.2,1.3,.4,1)' });
+      buzz([40, 40, 40]);
+    } else if (!needDecide) chm.classList.add('hidden');
     $('drawBtn').classList.toggle('hidden', !(canAct && v.pending == null));
     $('keepBtn').classList.toggle('hidden', !(canAct && v.pending != null));
     const canArm = canAct && v.hand.length === 2 && v.hand.some(c => playable(v, c));
@@ -945,6 +1009,19 @@
     ], { duration: ms || 1000, easing: 'ease-out', fill: 'both' });
   }
 
+  function showReveal(title, cards) {
+    const r = document.createElement('div'); r.className = 'reveal';
+    const p = document.createElement('p'); p.textContent = title; r.appendChild(p);
+    if (cards.length) {
+      const row = document.createElement('div'); row.className = 'row-cards';
+      cards.forEach(c => row.appendChild(cardEl(c)));
+      r.appendChild(row);
+    }
+    document.body.appendChild(r);
+    r.animate([{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'scale(1.04)', offset: .12 }, { opacity: 1, transform: 'scale(1)', offset: .85 }, { opacity: 0, transform: 'scale(.96)' }],
+      { duration: 2000, easing: 'ease-out', fill: 'forwards' }).finished.then(() => r.remove());
+  }
+
   function enqueue(v) { queue.push(v); if (!busy) drain(); }
   async function drain() {
     busy = true;
@@ -992,12 +1069,25 @@
       } else if (e.type === 'give') {
         if (e.why === '+2' || e.why === '+4') { toast(e.why, null, 900); await sleep(200); }
         if (e.why === 'caught') { toast(e.to === v.me ? 'Caught! +2' : 'Gotcha! +2', 'R', 1100); sfx.bad(); await sleep(250); }
+        if (e.why === 'bluff') { toast(e.to === v.me ? 'Bluff caught! +4' : 'Bluff caught! They draw 4', 'R', 1100); sfx.bad(); await sleep(250); }
+        if (e.why === 'challenge') { toast('+6', 'R', 900); await sleep(200); }
         if (e.to === v.me) { const ids = newIds.slice(mi, mi + e.n); mi += e.n; await flyToMe(ids); }
         else await flyToOpp(e.n);
       } else if (e.type === 'skip') {
         toast(e.to === v.me ? 'Skipped!' : 'Skip! Go again', null, 900); await sleep(300);
       } else if (e.type === 'shout') {
         toast(e.by === v.me ? 'Last card!' : oppName() + ': Last card!', 'R', 1100); sfx.shout(); buzz([20, 40, 20]);
+      } else if (e.type === 'w4') {
+        toast(e.by === v.me ? '+4 — will they challenge?' : '+4?!', null, 1100); await sleep(350);
+      } else if (e.type === 'challenge') {
+        const iChallenged = e.by === v.me;
+        toast('Challenge!', 'R', 900); sfx.shout(); await sleep(800);
+        if (e.guilty) {
+          showReveal((iChallenged ? oppName() + ' was bluffing!' : 'Busted — you had ') + (iChallenged ? '' : CNAME[e.color]), e.proof || []);
+          await sleep(1500);
+        } else {
+          toast(iChallenged ? 'Clean +4 — you draw 6' : 'Clean! They draw 6 😎', iChallenged ? 'R' : 'G', 1300); await sleep(600);
+        }
       } else if (e.type === 'reshuffle') {
         toast('Reshuffled', null, 800);
       }
@@ -1069,6 +1159,11 @@
   function cpuTurn() {
     if (!G || G.winner != null || G.turn !== 1 || busy) { if (busy) return; return; }
     if (G.vuln === 0 && Math.random() < .75) { act(G, 1, { t: 'catch' }); publish(); return; }
+    if (G.challenge) {
+      // the computer can't see your hand, so it guesses
+      const p = .3 + (G.hands[0].length >= 5 ? .12 : 0);
+      act(G, 1, { t: Math.random() < p ? 'challenge' : 'accept' }); publish(); return;
+    }
     const hand = G.hands[1];
     const shout = hand.length === 2 && Math.random() < .85;
     if (G.pending != null) {
@@ -1079,7 +1174,11 @@
     if (!opts.length) { act(G, 1, { t: 'draw' }); publish(); return; }
     const low = G.hands[0].length <= 3;
     const score = c => {
-      if (c.v === 'W4') return low ? 60 : -30;
+      if (c.v === 'W4') {
+        const bluff = hand.some(x => x.id !== c.id && x.c === G.color);
+        if (!bluff) return low ? 60 : -30;
+        return low && Math.random() < .4 ? 55 : -60;   // occasionally bluffs when you're close to winning
+      }
       if (c.v === 'W') return low ? 5 : -20;
       if (c.v === 'D2') return low ? 50 : 14;
       if (c.v === 'S' || c.v === 'R') return low ? 40 : 12;
@@ -1102,7 +1201,7 @@
   function resetTable() {
     clearTimeout(cpuTimer); queue.length = 0; view = null; G = null; round = 0; armed = false;
     handEl.innerHTML = ''; pileEl.innerHTML = ''; oppHandEl.innerHTML = ''; fx.innerHTML = '';
-    hideResult(); $('pickerModal').classList.add('hidden');
+    hideResult(); $('pickerModal').classList.add('hidden'); $('challengeModal').classList.add('hidden');
     closeTray(); closeChat();
   }
   function cleanup() {
@@ -1465,6 +1564,10 @@
       else if (e.type === 'give' && e.to === 0 && e.why === 'caught') fire(() => botReact(0, 500));
       else if (e.type === 'give' && e.to === 0 && e.why === '+4' && chance(.4)) fire(() => botSay('Sorry not sorry 😇', 600));
       else if (e.type === 'shout' && e.by === 0 && chance(.35)) fire(() => botSay('Uh oh 👀', 500));
+      else if (e.type === 'challenge' && e.by === 1 && e.guilty) fire(() => { botReact(0, 2200); botSay('Caught you bluffing 😂', 3000); });
+      else if (e.type === 'challenge' && e.by === 1 && !e.guilty) fire(() => botSay('Worth a shot 😅', 2600));
+      else if (e.type === 'challenge' && e.by === 0 && e.guilty) fire(() => { botReact(6, 2200); botSay('How did you know?! 😭', 3000); });
+      else if (e.type === 'challenge' && e.by === 0 && !e.guilty) fire(() => { botReact(3, 2200); botSay('Nice try. It was clean 😎', 3000); });
     }
     if (v.winner === 1) fire(() => { botReact(3, 1500); botSay(['Too easy 😎', 'GG! Want a rematch?', 'Better luck next round'][Math.floor(Math.random() * 3)], 2400); });
     else if (v.winner === 0 && chance(.8)) fire(() => { botReact(5, 1500); botSay(['Well played 👏', 'Okay you got me 😭', 'Rematch. Now.'][Math.floor(Math.random() * 3)], 2500); });
