@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="social.js"></script>
 <style>
   :root {
     --bg: #f6f3ee;
@@ -134,6 +135,7 @@
 
   <!-- LOBBY -->
   <section id="lobby" class="card">
+    <div id="profileSlot"></div>
     <span class="lbl">Board size (boxes)</span>
     <div class="sizes" id="sizes"></div>
     <button id="createBtn">Create a game</button>
@@ -311,7 +313,7 @@
 
   function label(p) {
     if (mode === 'local') return p === 'A' ? 'Player 1' : 'Player 2';
-    return p === me ? 'You' : 'Friend';
+    return p === me ? 'You' : ON();
   }
 
   function render() {
@@ -326,10 +328,10 @@
       if (counts.A === counts.B) s = "It's a tie!";
       else {
         const w = counts.A > counts.B ? 'A' : 'B';
-        s = mode === 'local' ? label(w) + ' wins!' : (w === me ? 'You win!' : 'Your friend wins');
+        s = mode === 'local' ? label(w) + ' wins!' : (w === me ? 'You win!' : ON() + ' wins');
       }
     } else if (mode === 'local') s = label(turn) + "'s turn";
-    else s = turn === me ? 'Your turn' : "Friend's turn…";
+    else s = turn === me ? 'Your turn' : ON() + "'s turn…";
     $('status').textContent = s;
 
     const myMove = !over && (mode === 'local' || (turn === me && conn && conn.open));
@@ -354,7 +356,16 @@
   function makeCode() { let s = ''; for (const n of crypto.getRandomValues(new Uint8Array(5))) s += ALPHA[n % ALPHA.length]; return s; }
   function shareUrl(code) { const u = new URL(location.href); u.search = '?room=' + code; u.hash = ''; return u.toString(); }
 
+  // ---------- chat, reactions & names (shared social.js) ----------
+  const ON = () => Social.oppName();
+  Social.profilePicker($('profileSlot'));
+  Social.init({
+    send: m => send(m), shakeEl: document.querySelector('main'), anchorFor: () => (me === 'A' ? $('plB') : $('plA')),
+    onPeer: () => { try { if (mode === 'host' || mode === 'guest') render(); } catch (e) {} }
+  });
+
   function cleanup() {
+    Social.show(false);
     try { conn && conn.close(); } catch (e) {}
     try { peer && peer.destroy(); } catch (e) {}
     conn = null; peer = null; mode = null;
@@ -402,6 +413,7 @@
   function wire(c) {
     conn = c;
     c.on('open', () => {
+      Social.reset('Chat with your friend while you play.'); Social.show(true); Social.hello();
       history.replaceState(null, '', location.pathname);
       wins = { A: 0, B: 0, D: 0 };
       if (mode === 'host') { send({ t: 'start', round: 0, size }); newRound(0, size); show('game'); }
@@ -409,6 +421,7 @@
     });
     c.on('data', msg => {
       if (!msg || typeof msg !== 'object') return;
+      if (Social.handle(msg)) return;
       switch (msg.t) {
         case 'full': goLobby('That game already has two players.'); break;
         case 'start':
@@ -420,7 +433,7 @@
         case 'again':
           if (Number.isInteger(msg.round) && msg.round > round && SIZES.includes(msg.size)) newRound(msg.round, msg.size);
           break;
-        case 'bye': goLobby('Your friend left the game.'); break;
+        case 'bye': goLobby(ON() + ' left the game.'); break;
       }
     });
     c.on('close', () => { if (mode === 'host' || mode === 'guest') goLobby('Connection lost. Start a new game to play again.'); });

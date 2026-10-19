@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="social.js"></script>
 <style>
   :root {
     --bg: #f6f3ee;
@@ -142,6 +143,7 @@
 
   <!-- LOBBY -->
   <section id="lobby" class="card">
+    <div id="profileSlot"></div>
     <button id="createBtn">Create a game</button>
     <div class="divider">or join a friend's game</div>
     <label for="codeInput">Room code</label>
@@ -175,10 +177,10 @@
   <section id="game" class="card hidden">
     <div class="top">
       <div class="prog">
-        <span class="who">Friend's progress</span>
+        <span class="who" id="oppProg">Friend's progress</span>
         <div id="oppMini" class="mini"></div>
       </div>
-      <div class="score">You <strong id="sMe">0</strong> · <strong id="sThem">0</strong> Friend<br><span id="sDraw"></span></div>
+      <div class="score">You <strong id="sMe">0</strong> · <strong id="sThem">0</strong> <span id="oppNm">Friend</span><br><span id="sDraw"></span></div>
     </div>
     <div id="status" class="status">&nbsp;</div>
     <div class="letters" id="letters"></div>
@@ -197,7 +199,7 @@
 
   <!-- OPPONENT CARD (revealed at the end) -->
   <section id="oppCardWrap" class="card opp hidden">
-    <h3>Your friend's card</h3>
+    <h3 id="oppCardTitle">Your friend's card</h3>
     <div id="oppGrid" class="grid small"></div>
   </section>
 </main>
@@ -277,7 +279,7 @@
       phase = 'over';
       if (mine >= 5 && theirs >= 5) { scores.d++; resultText = 'Both got BINGO — draw!'; }
       else if (mine >= 5) { scores.me++; resultText = 'BINGO! You win!'; }
-      else { scores.them++; resultText = 'Your friend got BINGO first'; }
+      else { scores.them++; resultText = ON() + ' got BINGO first'; }
       if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
     } else {
       turn = other(turn);
@@ -311,15 +313,16 @@
     letterEls.forEach((el, i) => el.classList.toggle('cut', i < myCount));
     miniEls.forEach((el, i) => el.classList.toggle('on', i < oppCount));
 
+    $('oppProg').textContent = ON() + "'s progress"; $('oppNm').textContent = ON(); $('oppCardTitle').textContent = ON() + "'s card";
     $('sMe').textContent = scores.me; $('sThem').textContent = scores.them;
     $('sDraw').textContent = scores.d ? scores.d + (scores.d === 1 ? ' draw' : ' draws') : '';
 
     let s;
     if (phase === 'setup') {
       if (!myReady) s = 'Shuffle your card, then tap Ready';
-      else s = oppReadyRound === round ? 'Starting…' : 'Waiting for your friend to get ready…';
+      else s = oppReadyRound === round ? 'Starting…' : 'Waiting for ' + ON() + ' to get ready…';
     } else if (phase === 'play') {
-      s = turn === me ? 'Your turn — pick a number' : "Friend's turn…";
+      s = turn === me ? 'Your turn — pick a number' : ON() + "'s turn…";
     } else s = resultText;
     $('status').textContent = s;
 
@@ -331,7 +334,7 @@
 
     $('lastWrap').classList.toggle('hidden', lastCalled == null);
     $('lastNum').textContent = lastCalled == null ? '–' : lastCalled;
-    $('lastBy').textContent = lastBy == null ? '' : (lastBy === me ? 'by you' : 'by friend');
+    $('lastBy').textContent = lastBy == null ? '' : (lastBy === me ? 'by you' : 'by ' + ON());
 
     if (phase === 'over' && oppCard) {
       const oppInline = new Set(doneLines(oppCard).flat());
@@ -353,7 +356,16 @@
   }
   function shareUrl(code) { const u = new URL(location.href); u.search = '?room=' + code; u.hash = ''; return u.toString(); }
 
+  // ---------- chat, reactions & names (shared social.js) ----------
+  const ON = () => Social.oppName();
+  Social.profilePicker($('profileSlot'));
+  Social.init({
+    send: m => send(m), shakeEl: document.querySelector('main'), anchorFor: () => $('oppMini'),
+    onPeer: () => { try { if (mode === 'host' || mode === 'guest') render(); } catch (e) {} }
+  });
+
   function cleanup() {
+    Social.show(false);
     try { conn && conn.close(); } catch (e) {}
     try { peer && peer.destroy(); } catch (e) {}
     conn = null; peer = null; mode = null;
@@ -406,6 +418,7 @@
   function wire(c) {
     conn = c;
     c.on('open', () => {
+      Social.reset('Chat with your friend while you play.'); Social.show(true); Social.hello();
       history.replaceState(null, '', location.pathname);
       scores = { me: 0, them: 0, d: 0 };
       oppReadyRound = -1; oppCard = null;
@@ -414,6 +427,7 @@
     });
     c.on('data', msg => {
       if (!msg || typeof msg !== 'object') return;
+      if (Social.handle(msg)) return;
       switch (msg.t) {
         case 'full': goLobby('That game already has two players.'); break;
         case 'ready':
@@ -431,7 +445,7 @@
         case 'again':
           if (Number.isInteger(msg.round) && msg.round > round) newSetup(msg.round);
           break;
-        case 'bye': goLobby('Your friend left the game.'); break;
+        case 'bye': goLobby(ON() + ' left the game.'); break;
       }
     });
     c.on('close', () => { if (mode) goLobby('Connection lost. Start a new game to play again.'); });

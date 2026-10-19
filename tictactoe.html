@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="social.js"></script>
 <style>
   :root {
     --bg: #f6f3ee;
@@ -106,6 +107,7 @@
 
   <!-- LOBBY -->
   <section id="lobby" class="card">
+    <div id="profileSlot"></div>
     <button id="createBtn">Create a game</button>
     <div class="divider">or join a friend's game</div>
     <label for="codeInput">Room code</label>
@@ -219,8 +221,8 @@
 
   function render(res) {
     const local = mode === 'local';
-    $('whoX').textContent = local ? 'Player 1' : (me === 'X' ? 'You' : 'Friend');
-    $('whoO').textContent = local ? 'Player 2' : (me === 'O' ? 'You' : 'Friend');
+    $('whoX').textContent = local ? 'Player 1' : (me === 'X' ? 'You' : ON());
+    $('whoO').textContent = local ? 'Player 2' : (me === 'O' ? 'You' : ON());
     $('ptsX').textContent = scores.X; $('ptsO').textContent = scores.O; $('ptsD').textContent = scores.D;
     $('plX').classList.toggle('turn', !over && turn === 'X');
     $('plO').classList.toggle('turn', !over && turn === 'O');
@@ -230,11 +232,11 @@
       const w = res ? res.w : (winLine ? board[winLine[0]] : 'D');
       if (w === 'D') s = "It's a draw";
       else if (local) s = (w === 'X' ? 'Player 1' : 'Player 2') + ' wins!';
-      else s = w === me ? 'You win!' : 'Your friend wins';
+      else s = w === me ? 'You win!' : ON() + ' wins';
     } else if (local) {
       s = (turn === 'X' ? 'Player 1 (X)' : 'Player 2 (O)') + ' to move';
     } else {
-      s = turn === me ? 'Your turn' : "Friend's turn…";
+      s = turn === me ? 'Your turn' : ON() + "'s turn…";
     }
     $('status').textContent = s;
 
@@ -258,7 +260,16 @@
     return u.toString();
   }
 
+  // ---------- chat, reactions & names (shared social.js) ----------
+  const ON = () => Social.oppName();
+  Social.profilePicker($('profileSlot'));
+  Social.init({
+    send: m => send(m), shakeEl: document.querySelector('main'), anchorFor: () => (me === 'X' ? $('plO') : $('plX')),
+    onPeer: () => { try { if (mode === 'host' || mode === 'guest') render(); } catch (e) {} }
+  });
+
   function cleanup() {
+    Social.show(false);
     try { conn && conn.close(); } catch (e) {}
     try { peer && peer.destroy(); } catch (e) {}
     conn = null; peer = null; mode = null;
@@ -313,15 +324,17 @@
   function wire(c) {
     conn = c;
     c.on('open', () => {
+      Social.reset('Chat with your friend while you play.'); Social.show(true); Social.hello();
       history.replaceState(null, '', location.pathname);
       scores = { X: 0, O: 0, D: 0 };
       if (mode === 'host') send({ t: 'start', round: 0 });
       newRound(0);
-      $('gameNote').textContent = 'You are ' + me + '. ' + (me === 'X' ? 'You go first.' : 'Your friend goes first.');
+      $('gameNote').textContent = 'You are ' + me + '. ' + (me === 'X' ? 'You go first.' : ON() + ' goes first.');
       show('game');
     });
     c.on('data', msg => {
       if (!msg || typeof msg !== 'object') return;
+      if (Social.handle(msg)) return;
       if (msg.t === 'full') { goLobby('That game already has two players.'); return; }
       if (msg.t === 'start') { newRound(msg.round | 0); return; }
       if (msg.t === 'move') {
@@ -330,8 +343,8 @@
         if (i >= 0 && i < 9) place(i, them);
         return;
       }
-      if (msg.t === 'again') { newRound(msg.round | 0); $('gameNote').textContent = (turn === me ? 'You start' : 'Your friend starts') + ' this round.'; return; }
-      if (msg.t === 'bye') { goLobby('Your friend left the game.'); }
+      if (msg.t === 'again') { newRound(msg.round | 0); $('gameNote').textContent = (turn === me ? 'You start' : ON() + ' starts') + ' this round.'; return; }
+      if (msg.t === 'bye') { goLobby(ON() + ' left the game.'); }
     });
     c.on('close', () => { if (mode === 'host' || mode === 'guest') goLobby('Connection lost. Start a new game to play again.'); });
     c.on('error', () => {});
@@ -369,7 +382,7 @@
     if (mode === 'local') { newRound(r); return; }
     send({ t: 'again', round: r });
     newRound(r);
-    $('gameNote').textContent = (turn === me ? 'You start' : 'Your friend starts') + ' this round.';
+    $('gameNote').textContent = (turn === me ? 'You start' : ON() + ' starts') + ' this round.';
   };
   $('leaveBtn').onclick = () => { send({ t: 'bye' }); setTimeout(() => goLobby(), 150); };
 
