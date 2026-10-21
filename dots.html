@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="net.js"></script>
 <script src="social.js"></script>
 <style>
   :root {
@@ -365,6 +366,7 @@
   });
 
   function cleanup() {
+    if (joining) { joining.cancel(); joining = null; }
     Social.show(false);
     try { conn && conn.close(); } catch (e) {}
     try { peer && peer.destroy(); } catch (e) {}
@@ -380,7 +382,7 @@
     $('waitMsg').textContent = 'Connecting…';
     show('waiting');
     peer = new Peer(PREFIX + code);
-    peer.on('open', () => { $('waitMsg').textContent = 'Waiting for your friend… (' + size + '×' + size + ' board)'; });
+    peer.on('open', () => { $('waitMsg').textContent = 'Waiting for your friend… (' + size + '×' + size + ' board) — keep this screen open until they join'; });
     peer.on('connection', c => {
       if (conn && conn.open) { c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 300); }); return; }
       wire(c);
@@ -393,6 +395,7 @@
     });
   }
 
+  let joining = null;
   function join(code) {
     code = (code || '').trim().toUpperCase();
     if (code.length !== 5) { $('lobbyMsg').textContent = 'Enter the 5-letter room code.'; return; }
@@ -400,12 +403,16 @@
     $('lobbyMsg').textContent = 'Joining ' + code + '…';
     peer = new Peer();
     peer.on('open', () => {
-      wire(peer.connect(PREFIX + code, { reliable: true }));
-      setTimeout(() => { if (mode === 'guest' && (!conn || !conn.open)) goLobby('No game found with code ' + code + '. Ask your friend for a fresh code.'); }, 12000);
+      joining = GameNet.join(peer, PREFIX + code, {
+        code,
+        onConn: c => wire(c),
+        onStatus: t => { if (mode === 'guest') $('lobbyMsg').textContent = t; },
+        onFail: t => { if (mode === 'guest') goLobby(t); }
+      });
     });
     peer.on('error', err => {
-      if (err.type === 'peer-unavailable') goLobby('No game found with code ' + code + '. Ask your friend for a fresh code.');
-      else if (err.type === 'network' || err.type === 'server-error') goLobby("Couldn't reach the connection service. Check your internet and try again.");
+      if (err.type === 'peer-unavailable') return;   // GameNet keeps looking
+      if (err.type === 'network' || err.type === 'server-error') goLobby("Couldn't reach the connection service. Check your internet and try again.");
       else goLobby('Connection problem: ' + err.type);
     });
   }
@@ -436,7 +443,7 @@
         case 'bye': goLobby(ON() + ' left the game.'); break;
       }
     });
-    c.on('close', () => { if (mode === 'host' || mode === 'guest') goLobby('Connection lost. Start a new game to play again.'); });
+    c.on('close', () => { if (c === conn && (mode === 'host' || mode === 'guest')) goLobby('Connection lost. Start a new game to play again.'); });
     c.on('error', () => {});
   }
 

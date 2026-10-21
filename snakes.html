@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="net.js"></script>
 <script src="kit.js"></script>
 <script src="social.js"></script>
 <style>
@@ -426,6 +427,7 @@
     },
     onRoom: paintRoom,
     onBegin() { st = null; disp = null; boardKey = ''; $('resultModal').classList.add('hidden'); $('tokens').innerHTML = ''; tokEls.length = 0; },
+    onJoinStatus(text) { $('lobbyMsg').textContent = text; },
     onSeats() { if (st) paintPlayers(st); },
     onState: showState
   });
@@ -523,7 +525,7 @@
     $('startBtn').classList.toggle('hidden', !info.isHost);
     $('startBtn').disabled = !info.code || (!$('fillBots').checked && joined === 0);
     $('startBtn').textContent = joined === 0 && $('fillBots').checked ? 'Start with computer players' : 'Start game';
-    $('roomWait').textContent = info.isHost ? (open ? 'Waiting for friends to join' : 'Everyone is here!') : 'Waiting for the host to start';
+    $('roomWait').textContent = info.isHost ? (open ? 'Waiting for friends — keep this screen open' : 'Everyone is here!') : 'Waiting for the host to start';
     $('roomWait').classList.toggle('pulse', !!open || !info.isHost);
     $('shareBtn').disabled = $('copyBtn').disabled = !info.code;
   }

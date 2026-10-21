@@ -244,33 +244,38 @@
         peer.on('error', err => {
           if (dead) return;
           if (err.type === 'unavailable-id') { try { peer.destroy(); } catch (e) {} start(); return; }
-          if (['network', 'server-error', 'browser-incompatible', 'socket-error', 'socket-closed'].includes(err.type) && !conns.size) { if (o.onError) o.onError(NET_ERR); }
+          if (['network', 'server-error', 'browser-incompatible', 'socket-error', 'socket-closed'].includes(err.type) && !conns.size) { if (o.onError) o.onError(NET_ERR); }   // net.js hides these once we've been online
         });
       }
       start();
       return api;
     },
     join(o) {
-      let dead = false, conn = null;
+      let dead = false, conn = null, attempt = null;
       const peer = new Peer();
-      const fail = t => { if (dead) return; dead = true; clearTimeout(timer); try { peer.destroy(); } catch (e) {} if (o.onError) o.onError(t); };
-      const notFound = 'No game found with code ' + o.code + '. Ask your friend for a fresh code.';
-      const timer = setTimeout(() => { if (!conn || !conn.open) fail(notFound); }, 13000);
+      const fail = t => { if (dead) return; dead = true; if (attempt) attempt.cancel(); try { peer.destroy(); } catch (e) {} if (o.onError) o.onError(t); };
       peer.on('open', () => {
-        conn = peer.connect(o.prefix + o.code, { reliable: true });
-        conn.on('open', () => { clearTimeout(timer); if (!dead && o.onOpen) o.onOpen(); });
-        conn.on('data', m => { if (!dead && m && typeof m === 'object' && o.onData) o.onData(m); });
-        conn.on('close', () => { if (!dead) { dead = true; try { peer.destroy(); } catch (e) {} if (o.onClose) o.onClose(); } });
-        conn.on('error', () => {});
+        attempt = GameNet.join(peer, o.prefix + o.code, {
+          code: o.code,
+          onConn(c) {
+            c.on('open', () => { if (dead || conn) return; conn = c; if (o.onOpen) o.onOpen(); });
+            c.on('data', m => { if (!dead && c === conn && m && typeof m === 'object' && o.onData) o.onData(m); });
+            c.on('close', () => { if (!dead && c === conn) { dead = true; try { peer.destroy(); } catch (e) {} if (o.onClose) o.onClose(); } });
+            c.on('error', () => {});
+          },
+          onStatus(t) { if (!dead && o.onStatus) o.onStatus(t); },
+          onFail: fail
+        });
       });
       peer.on('error', err => {
-        if (err.type === 'peer-unavailable') fail(notFound);
-        else if (['network', 'server-error', 'browser-incompatible', 'socket-error'].includes(err.type)) fail(NET_ERR);
-        else if (!conn || !conn.open) fail('Connection problem: ' + err.type);
+        if (err.type === 'peer-unavailable') return;          // GameNet keeps looking
+        if (conn) return;                                       // already playing: not fatal
+        if (['network', 'server-error', 'browser-incompatible', 'socket-error'].includes(err.type)) fail(NET_ERR);
+        else fail('Connection problem: ' + err.type);
       });
       return {
         send(m) { if (conn && conn.open) conn.send(m); },
-        close() { dead = true; clearTimeout(timer); try { conn && conn.close(); } catch (e) {} try { peer.destroy(); } catch (e) {} }
+        close() { dead = true; if (attempt) attempt.cancel(); try { conn && conn.close(); } catch (e) {} try { peer.destroy(); } catch (e) {} }
       };
     },
     shareUrl(code) { const u = new URL(location.href); u.search = '?room=' + code; u.hash = ''; return u.toString(); },
@@ -522,6 +527,7 @@
       if (social) social.reset();
       t.link = Kit.Room.join({
         prefix: cfg.prefix, code,
+        onStatus(text) { if (cfg.onJoinStatus) cfg.onJoinStatus(text); },
         onOpen() { Kit.Room.clearParam(); if (social) { social.setMode('online'); social.hello(); } cfg.onScreen('room'); emitRoom(); },
         onData(msg) {
           if (social && social.handle(msg)) return;
